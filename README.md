@@ -50,13 +50,13 @@ pip install -r requirements.txt
 O MIRSCOPE exige que os seus arquivos de entrada estejam em uma pasta chamada fasta_especies/.
 Atualmente, esta pasta no repositório já contém os arquivos de todos os miRNAs disponíveis no miRBase (maio/2026).
 
-⚠️ Preparando os seus dados para análise:
+  ⚠️ Preparando os seus dados para análise:
 
-Adicionar: Você pode adicionar os seus próprios arquivos de interesse nesta pasta. Cada arquivo FASTA deve representar uma única espécie e conter todas as sequências de miRNAs pertencentes a ela.
-
-Regra de Ouro (Nomenclatura): O nome dos arquivos .fasta deve obrigatoriamente seguir o formato de taxonomia para que o MIRSCOPE reconheça a espécie. Ex: mirna_Homo_sapiens.fasta ou mirna_Mus_musculus.fa.
-
-Filtrar (Altamente Recomendado): Se você não tem interesse em realizar a sua análise contra todo o banco do miRBase, exclua os arquivos das espécies que não vai usar. Manter na pasta apenas as espécies do seu estudo deixará o processamento muito mais rápido e gerará um UpSet Plot muito mais focado e limpo.
+  - Adicionar: Você pode adicionar os seus próprios arquivos de interesse nesta pasta. Cada arquivo FASTA deve representar uma única espécie e conter todas as sequências de miRNAs pertencentes a ela.
+  
+  - Regra de Ouro (Nomenclatura): O nome dos arquivos .fasta deve obrigatoriamente seguir o formato de taxonomia para que o MIRSCOPE reconheça a espécie. Ex: mirna_Homo_sapiens.fasta ou mirna_Mus_musculus.fa.
+  
+  - Filtrar (Altamente Recomendado): Se você não tem interesse em realizar a sua análise contra todo o banco do miRBase, exclua os arquivos das espécies que não vai usar. Manter na pasta apenas as espécies do seu estudo deixará o processamento muito mais rápido e gerará um UpSet Plot muito mais focado e limpo.
 
 A ferramenta possui dois executáveis independentes:
 
