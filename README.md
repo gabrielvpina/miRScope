@@ -47,8 +47,16 @@ pip install -r requirements.txt
 
 🚀 Como Usar
 
-O MIRSCOPE exige que os seus ficheiros de entrada estejam numa pasta chamada fasta_especies/.
-Regra de Ouro: O nome dos ficheiros .fasta deve seguir o formato de taxonomia, ex: mirna_Homo_sapiens.fasta ou mirna_Mus_musculus.fa.
+O MIRSCOPE exige que os seus arquivos de entrada estejam em uma pasta chamada fasta_especies/.
+Atualmente, esta pasta no repositório já contém os arquivos de todos os miRNAs disponíveis no miRBase (maio/2026).
+
+⚠️ Preparando os seus dados para análise:
+
+Adicionar: Você pode adicionar os seus próprios arquivos de interesse nesta pasta. Cada arquivo FASTA deve representar uma única espécie e conter todas as sequências de miRNAs pertencentes a ela.
+
+Regra de Ouro (Nomenclatura): O nome dos arquivos .fasta deve obrigatoriamente seguir o formato de taxonomia para que o MIRSCOPE reconheça a espécie. Ex: mirna_Homo_sapiens.fasta ou mirna_Mus_musculus.fa.
+
+Filtrar (Altamente Recomendado): Se você não tem interesse em realizar a sua análise contra todo o banco do miRBase, exclua os arquivos das espécies que não vai usar. Manter na pasta apenas as espécies do seu estudo deixará o processamento muito mais rápido e gerará um UpSet Plot muito mais focado e limpo.
 
 A ferramenta possui dois executáveis independentes:
 
@@ -61,7 +69,7 @@ python run_modo_macro.py
 
 MODO 2: Ortologia Estrita por Coesão
 
-Utiliza o MAFFT para alinhar as famílias de seed e aplica um rigoroso cutoff de 85% de identidade base a base para isolar verdadeiros ortólogos maduros, garantindo simultaneamente o resgate de miRNAs espécie-específicos (Via Expressa).
+Utiliza o MAFFT para alinhar as famílias de seed e aplica um rigoroso cutoff de 85% de identidade base a base para isolar verdadeiros ortólogos maduros, garantindo simultaneamente o resgate de miRNAs espécie-específicos.
 
 💡 Personalizando o Limite de Identidade (Cutoff):
 O valor padrão de similaridade da ferramenta é de 85%. Se a sua pesquisa exigir um rigor maior (ex: 95%) ou for mais flexível, você pode alterar esse valor facilmente. Basta abrir o arquivo run_modo_estrito.py em qualquer editor de texto e alterar o valor numérico da variável cutoff_desejado = 85.0 localizada no início do código.
