@@ -6,7 +6,7 @@ A ferramenta utiliza uma abordagem centrada na região seed (nucleotídeos 2-8) 
 
 ## 🛠️ Pré-requisitos e Compatibilidade
 
-O MIRSCOPE foi desenhado para correr em sistemas Linux e macOS (ou Windows via WSL).
+O MIRSCOPE foi desenhado para rodar em sistemas Linux e macOS (ou Windows via WSL).
 Para utilizar a ferramenta, o seu sistema precisa ter:
 
 Python 3.8+
