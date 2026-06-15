@@ -38,12 +38,13 @@ conda install -c bioconda mafft
 Faça o clone deste repositório e instale as dependências do Python:
 
 ## 1. Clonar o repositório
-git clone [https://github.com/SEU_USUARIO/mirscope.git](https://github.com/SEU_USUARIO/mirscope.git)
+git clone [https://github.com/SEU_USUARIO/mirscope.git](https://github.com/TatyanaChagas/mirscope.git)
 cd mirscope
 
 ## 2. Instalar as bibliotecas Python necessárias
 pip install -r requirements.txt
 
+## 3. Utilização da ferramenta
 
 🚀 Como Usar
 
