@@ -2,6 +2,7 @@ import subprocess
 import tempfile
 import os
 import glob
+import xlsxwriter
 import pandas as pd
 import matplotlib.pyplot as plt
 from io import StringIO
@@ -163,7 +164,7 @@ def separar_por_coesao_total(alinhamento_limpo, cutoff_percentual):
 # =============================================================================
 
 def salvar_excel_modo_macro(lista_mirnas, caminho_saida):
-    """Salva a informação bruta separada por Seed no Modo 1."""
+    """Salva a informação bruta separada por Seed no Modo 1, com filtros e cores."""
     dados = []
     for m in lista_mirnas:
         dados.append({
@@ -172,8 +173,15 @@ def salvar_excel_modo_macro(lista_mirnas, caminho_saida):
             'ID_Original': m.id,
             'Sequencia': m.sequencia
         })
-    df = pd.DataFrame(dados).sort_values(by=['Seed', 'Especie'])
-    df.to_excel(caminho_saida, index=False)
+    df = pd.DataFrame(dados)
+    
+    # Conta espécies únicas por Seed e reorganiza as colunas
+    if not df.empty:
+        df['Qtd_Especies'] = df.groupby('Seed')['Especie'].transform('nunique')
+        df = df[['Seed', 'Qtd_Especies', 'Especie', 'ID_Original', 'Sequencia']]
+        df = df.sort_values(by=['Seed', 'Especie'])
+    
+    exportar_planilha_agrupada(df, caminho_saida, coluna_grupo='Seed')
     print(f"✅ Output Excel (Macro) guardado em: '{caminho_saida}'")
 
 def salvar_alinhamentos_fasta(resultados_alinhados, caminho_saida):
@@ -186,7 +194,7 @@ def salvar_alinhamentos_fasta(resultados_alinhados, caminho_saida):
     print(f"✅ Output Alinhamento (FASTA) guardado em: '{caminho_saida}'")
 
 def salvar_excel_clusters_detalhados(dicionario_clusters, caminho_saida):
-    """Salva a tabela completa com a identificação de cada miRNA no seu respetivo Cluster."""
+    """Salva a tabela completa com filtros e zebra colors por cluster."""
     dados = []
     for seed, clusters in dicionario_clusters.items():
         for idx, cluster in enumerate(clusters):
@@ -203,7 +211,13 @@ def salvar_excel_clusters_detalhados(dicionario_clusters, caminho_saida):
                     'Sequencia_Alinhada': str(rec.seq)
                 })
     df = pd.DataFrame(dados)
-    df.to_excel(caminho_saida, index=False)
+    
+    # Conta espécies únicas por Cluster e reorganiza as colunas
+    if not df.empty:
+        df['Qtd_Especies'] = df.groupby('Cluster_ID')['Especie'].transform('nunique')
+        df = df[['Seed', 'Cluster_ID', 'Qtd_Especies', 'Especie', 'ID_Original', 'Sequencia_Alinhada']]
+    
+    exportar_planilha_agrupada(df, caminho_saida, coluna_grupo='Cluster_ID')
     print(f"✅ Output Excel (Clusters Detalhados) guardado em: '{caminho_saida}'")
 
 # =============================================================================
@@ -335,3 +349,96 @@ def gerar_upset_plot(df_booleano, caminho_saida="resultados_mirscope_upset.png",
     plt.close()
     
     print(f"✅ Gráfico guardado com sucesso em: '{caminho_saida}'")
+
+def salvar_excel_formatado(df, caminho_saida, manter_index=False):
+    """Salva um DataFrame ajustando larguras de coluna e estilos visuais."""
+    
+    # Se o DataFrame estiver vazio, usa o método padrão para evitar erros
+    if df.empty:
+        df.to_excel(caminho_saida, index=manter_index)
+        return
+
+    # Usa o xlsxwriter como motor para permitir formatação
+    with pd.ExcelWriter(caminho_saida, engine='xlsxwriter') as writer:
+        df.to_excel(writer, index=manter_index, sheet_name='Resultados')
+        
+        workbook  = writer.book
+        worksheet = writer.sheets['Resultados']
+        
+        # Formato do cabeçalho (negrito com fundo cinza)
+        formato_cabecalho = workbook.add_format({
+            'bold': True,
+            'bg_color': '#D3D3D3', 
+            'border': 1
+        })
+        
+        # Trava a primeira linha para facilitar a rolagem
+        worksheet.freeze_panes(1, 0)
+        
+        # Ajusta as colunas iterando pelos nomes (e considerando se há index)
+        offset_coluna = 1 if manter_index else 0
+        
+        for i, col in enumerate(df.columns):
+            # Descobre o maior tamanho: nome da coluna ou conteúdo
+            tamanho_maximo = max(
+                df[col].astype(str).map(len).max(),
+                len(str(col))
+            ) + 2
+            
+            # Limita a largura (ex: 60) para não estourar a tela em sequências longas
+            largura = min(tamanho_maximo, 60)
+            
+            # Aplica a largura na coluna
+            idx_coluna = i + offset_coluna
+            worksheet.set_column(idx_coluna, idx_coluna, largura)
+            
+            # Aplica o estilo na célula do cabeçalho
+            worksheet.write(0, idx_coluna, col, formato_cabecalho)
+
+def exportar_planilha_agrupada(df, caminho_saida, coluna_grupo):
+    """Salva o Excel com AutoFiltro e cores alternadas baseadas no grupo."""
+    if df.empty:
+        df.to_excel(caminho_saida, index=False)
+        return
+
+    with pd.ExcelWriter(caminho_saida, engine='xlsxwriter') as writer:
+        workbook = writer.book
+        worksheet = workbook.add_worksheet('Resultados')
+        
+        # Paleta de cores e estilos
+        formato_cabecalho = workbook.add_format({'bold': True, 'bg_color': '#D3D3D3', 'border': 1})
+        formato_impar = workbook.add_format({'bg_color': '#FCE4D6', 'border': 1, 'border_color': '#E0E0E0'}) # Laranja pastel
+        formato_par = workbook.add_format({'bg_color': '#FFFFFF', 'border': 1, 'border_color': '#E0E0E0'})   # Branco
+        
+        # 1. Escreve os cabeçalhos
+        for col_num, col_name in enumerate(df.columns):
+            worksheet.write(0, col_num, col_name, formato_cabecalho)
+        
+        idx_grupo = df.columns.get_loc(coluna_grupo)
+        grupo_atual = None
+        usar_cor_impar = False
+        
+        # 2. Escreve os dados linha por linha alternando cores
+        for row_num, row_data in enumerate(df.values, start=1):
+            valor_grupo = row_data[idx_grupo]
+            
+            # Se o grupo mudou em relação à linha anterior, inverte a cor
+            if valor_grupo != grupo_atual:
+                usar_cor_impar = not usar_cor_impar
+                grupo_atual = valor_grupo
+                
+            formato_linha = formato_impar if usar_cor_impar else formato_par
+            
+            for col_num, cell_value in enumerate(row_data):
+                worksheet.write(row_num, col_num, cell_value, formato_linha)
+        
+        # 3. Adiciona o AutoFiltro em todas as colunas
+        max_row = len(df)
+        max_col = len(df.columns) - 1
+        worksheet.autofilter(0, 0, max_row, max_col)
+        worksheet.freeze_panes(1, 0) # Trava o cabeçalho
+        
+        # 4. Ajusta larguras
+        for i, col in enumerate(df.columns):
+            tamanho_maximo = max(df[col].astype(str).map(len).max(), len(str(col))) + 2
+            worksheet.set_column(i, i, min(tamanho_maximo, 60))
