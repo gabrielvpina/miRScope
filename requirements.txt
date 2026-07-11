@@ -3,3 +3,4 @@ matplotlib
 biopython
 numpy
 openpyxl
+xlsxwriter
