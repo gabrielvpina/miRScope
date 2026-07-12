@@ -5,7 +5,7 @@ import argparse
 import logging
 from typing import Optional, Sequence
 
-from .bootstrap import ensure_pixi
+from .bootstrap import activate_pixi_env, ensure_pixi
 from .config import DEFAULT_CUTOFF
 from .logging_config import get_logger, setup_logging
 from .modes.macro import MacroMode
@@ -66,6 +66,10 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
 
     level = logging.DEBUG if args.verbose else logging.INFO
     setup_logging(level)
+
+    # Technique 2: put the pixi env bin (with MAFFT) on PATH for this process,
+    # so the plain `mirscope` command works outside `pixi run`.
+    activate_pixi_env()
 
     # First-run only: make sure pixi (and thus the dependencies) is set up.
     # Best-effort — must never break the actual pipeline.

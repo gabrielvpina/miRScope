@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import tempfile
 from io import StringIO
+from pathlib import Path
 from typing import List, Optional
 
 from Bio import SeqIO
@@ -14,6 +15,37 @@ from Bio.SeqRecord import SeqRecord
 
 from .config import MafftConfig
 from .logging_config import get_logger
+
+MAFFT_ENV_VAR = "MIRSCOPE_MAFFT"
+
+
+def resolve_mafft(executable: str) -> Optional[str]:
+    """Resolve the MAFFT executable path.
+
+    Search order: ``MIRSCOPE_MAFFT`` env var, then the global PATH (which the
+    CLI seeds via :func:`mirscope.bootstrap.activate_pixi_env`), then the pixi
+    environment bin directories directly.
+    """
+    override = os.environ.get(MAFFT_ENV_VAR)
+    if override:
+        if os.path.isfile(override):
+            return override
+        located = shutil.which(override)
+        if located:
+            return located
+
+    on_path = shutil.which(executable)
+    if on_path:
+        return on_path
+
+    # Imported lazily to avoid a circular import at module load time.
+    from .bootstrap import pixi_env_bin_dirs
+
+    for bin_dir in pixi_env_bin_dirs():
+        candidate = Path(bin_dir) / executable
+        if candidate.exists():
+            return str(candidate)
+    return None
 
 
 class MafftAligner:
@@ -29,9 +61,13 @@ class MafftAligner:
         self.logger = get_logger("alignment")
         self.failed_seeds: List[str] = []
 
+    def resolve_executable(self) -> Optional[str]:
+        """Return the usable MAFFT path (env var, PATH, or pixi env)."""
+        return resolve_mafft(self.config.executable)
+
     def is_available(self) -> bool:
-        """Return ``True`` if the MAFFT executable is on the PATH."""
-        return shutil.which(self.config.executable) is not None
+        """Return ``True`` if a usable MAFFT executable can be found."""
+        return self.resolve_executable() is not None
 
     def align(
         self, records: List[SeqRecord], seed_sequence: str
@@ -43,6 +79,16 @@ class MafftAligner:
         """
         if len(records) < 2:
             return records
+
+        executable = self.resolve_executable()
+        if executable is None:
+            self.logger.error(
+                "MAFFT not found for seed '%s' (checked %s, PATH, and pixi env).",
+                seed_sequence,
+                MAFFT_ENV_VAR,
+            )
+            self.failed_seeds.append(seed_sequence)
+            return None
 
         anchor_a = SeqRecord(Seq(seed_sequence), id="ANCHOR_A", description="")
         anchor_b = SeqRecord(Seq(seed_sequence), id="ANCHOR_B", description="")
@@ -59,7 +105,7 @@ class MafftAligner:
             fasta_input = "\n".join(f">{rec.id}\n{str(rec.seq)}" for rec in all_records)
 
             command = [
-                self.config.executable,
+                executable,
                 "--seed",
                 seed_path,
                 *self.config.extra_args,

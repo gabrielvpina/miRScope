@@ -18,10 +18,18 @@ dependencies = [
     "xlsxwriter",
 ]
 
-# Registers the `mirscope` terminal command -> mirscope.cli:main
+# Registers the terminal commands.
+#   mirscope        -> run the pipeline
+#   mirscope-setup  -> post-install: ensure pixi + install deps (incl. MAFFT)
 [project.scripts]
 mirscope = "mirscope.cli:main"
+mirscope-setup = "mirscope.bootstrap:run_setup"
 
 [tool.setuptools.packages.find]
 include = ["mirscope*"]
 exclude = ["mirscope.test*"]
+
+# Ship the minimal MAFFT-only manifest so `mirscope-setup` can provision the
+# managed environment in a wheel install (no project checkout on disk).
+[tool.setuptools.package-data]
+mirscope = ["_env/pixi.toml"]

@@ -1,0 +1,10 @@
+# Minimal manifest shipped inside the wheel. `mirscope-setup` copies this into
+# the user data directory and runs `pixi install` there, providing MAFFT (a
+# native binary that pip cannot install). Python libraries come from pip.
+[workspace]
+name = "mirscope-env"
+channels = ["conda-forge", "bioconda"]
+platforms = ["osx-arm64", "osx-64", "linux-64"]
+
+[dependencies]
+mafft = "*"
