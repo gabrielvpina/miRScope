@@ -2,7 +2,19 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Tuple
+
+
+def packaged_data_dir() -> Path:
+    """Return the reference FASTA database bundled inside the package.
+
+    Resolved relative to this file, so it always points at the shipped ``data/``
+    directory regardless of the working directory or install type (editable or
+    wheel).
+    """
+    return Path(__file__).resolve().parent / "data"
+
 
 # ---------------------------------------------------------------------------
 # Seed definition

@@ -29,7 +29,7 @@ mirscope-setup = "mirscope.bootstrap:run_setup"
 include = ["mirscope*"]
 exclude = ["mirscope.test*"]
 
-# Ship the minimal MAFFT-only manifest so `mirscope-setup` can provision the
-# managed environment in a wheel install (no project checkout on disk).
+# Ship the MAFFT-only manifest and the bundled reference FASTA database so both
+# resolve inside a wheel install (no project checkout on disk).
 [tool.setuptools.package-data]
-mirscope = ["_env/pixi.toml"]
+mirscope = ["_env/pixi.toml", "data/*.fasta", "data/*.fa"]

@@ -37,6 +37,8 @@ class StrictMode:
         self.alignment_writer = AlignmentWriter()
         self.plotter = UpSetPlotter()
         self.output_dir = "."
+        self.top_n: Optional[int] = None
+        self.min_size: int = 1
 
     def _out(self, name: str) -> str:
         """Resolve an output file name inside the configured output directory."""
@@ -47,6 +49,8 @@ class StrictMode:
         data_folder: str,
         input_files: Optional[Sequence[str]] = None,
         output_dir: str = ".",
+        top_n: Optional[int] = None,
+        min_size: int = 1,
     ) -> None:
         self.logger.info("=" * 60)
         self.logger.info("MIRSCOPE — MODE 2 (Strict Orthology by Cohesion)")
@@ -60,6 +64,8 @@ class StrictMode:
             return
 
         self.output_dir = output_dir
+        self.top_n = top_n
+        self.min_size = min_size
         os.makedirs(output_dir, exist_ok=True)
         self.logger.info("Output directory: '%s'", os.path.abspath(output_dir))
 
@@ -154,4 +160,6 @@ class StrictMode:
             matrix,
             self._out(self.outputs.upset_plot),
             f"miRNA Orthology - Total Cohesion (Cutoff: {self.cutoff}%)",
+            top_n=self.top_n,
+            min_size=self.min_size,
         )

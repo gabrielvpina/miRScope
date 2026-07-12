@@ -31,6 +31,8 @@ class MacroMode:
         data_folder: str,
         input_files: Optional[Sequence[str]] = None,
         output_dir: str = ".",
+        top_n: Optional[int] = None,
+        min_size: int = 1,
     ) -> None:
         self.logger.info("=" * 60)
         self.logger.info("MIRSCOPE — MODE 1 (Broad Conservation by Seed)")
@@ -67,6 +69,8 @@ class MacroMode:
             matrix,
             os.path.join(output_dir, self.outputs.upset_plot),
             "Evolutionary Conservation by Seed Family (Macro Mode)",
+            top_n=top_n,
+            min_size=min_size,
         )
 
         self.logger.info("Macro analysis finished in %.2fs.", time.perf_counter() - start)

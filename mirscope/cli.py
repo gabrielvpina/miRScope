@@ -6,7 +6,7 @@ import logging
 from typing import Optional, Sequence
 
 from .bootstrap import activate_pixi_env, ensure_pixi
-from .config import DEFAULT_CUTOFF
+from .config import DEFAULT_CUTOFF, packaged_data_dir
 from .logging_config import get_logger, setup_logging
 from .modes.macro import MacroMode
 from .modes.strict import StrictMode
@@ -32,8 +32,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--data",
-        default="data",
-        help="Reference folder with the FASTA database (default: 'data').",
+        default=None,
+        help="Reference folder with the FASTA database. Defaults to the "
+        "reference database bundled inside the package (always resolvable, "
+        "in editable and wheel installs alike). Pass a path to override it.",
     )
     parser.add_argument(
         "--input",
@@ -50,6 +52,23 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="DIR",
         help="Directory where output files are written (created if missing; "
         "default: current directory).",
+    )
+    parser.add_argument(
+        "--top-n",
+        type=int,
+        default=10,
+        metavar="N",
+        help="Show only the N largest intersections in the UpSet plot "
+        "(default: 10; use 0 for all). Affects the plot only; exported tables "
+        "keep everything.",
+    )
+    parser.add_argument(
+        "--min-size",
+        type=int,
+        default=1,
+        metavar="N",
+        help="Show only intersections with at least N members in the UpSet plot "
+        "(default: 1). Affects the plot only.",
     )
     parser.add_argument(
         "-v",
@@ -78,10 +97,16 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     except Exception as error:  # noqa: BLE001
         get_logger("bootstrap").debug("Bootstrap check skipped: %s", error)
 
+    # Default to the bundled reference database, resolved via the package path
+    # so it works from any working directory and in wheel installs.
+    data_folder = args.data if args.data else str(packaged_data_dir())
+
     if args.mode == "macro":
-        MacroMode().run(args.data, args.input, args.out)
+        MacroMode().run(data_folder, args.input, args.out, args.top_n, args.min_size)
     else:
-        StrictMode(args.cutoff).run(args.data, args.input, args.out)
+        StrictMode(args.cutoff).run(
+            data_folder, args.input, args.out, args.top_n, args.min_size
+        )
 
 
 if __name__ == "__main__":

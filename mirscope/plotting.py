@@ -1,6 +1,8 @@
 """Native UpSet plot rendering for the boolean presence/absence matrices."""
 from __future__ import annotations
 
+from typing import Optional
+
 import matplotlib
 
 matplotlib.use("Agg")  # headless-safe backend
@@ -10,6 +12,22 @@ import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
 from .logging_config import get_logger  # noqa: E402
+
+
+def active_species(species, intersections):
+    """Return the species that appear in at least one intersection.
+
+    ``species`` is the ordered list of species (matrix columns); ``intersections``
+    is an iterable of boolean tuples aligned to ``species``. Species that are
+    absent from every intersection are dropped, so the plot does not render
+    empty rows.
+    """
+    intersections = list(intersections)
+    return [
+        name
+        for i, name in enumerate(species)
+        if any(index[i] for index in intersections)
+    ]
 
 
 class UpSetPlotter:
@@ -23,8 +41,15 @@ class UpSetPlotter:
         boolean_df: pd.DataFrame,
         output_path: str = "mirscope_upset.png",
         title: str = "Evolutionary Conservation of miRNAs",
+        top_n: Optional[int] = None,
+        min_size: int = 1,
     ) -> None:
-        """Render the UpSet plot to ``output_path``."""
+        """Render the UpSet plot to ``output_path``.
+
+        ``min_size`` keeps only intersections with at least that many members;
+        ``top_n`` keeps only the N largest intersections (after ``min_size``).
+        Both affect the plot only — the exported tables always keep every row.
+        """
         if boolean_df.empty:
             self.logger.warning("Boolean matrix is empty; no plot generated.")
             return
@@ -38,10 +63,34 @@ class UpSetPlotter:
             return
 
         grouped = boolean_df.groupby(species).size()
-        grouped = grouped[grouped > 0].sort_values(ascending=False)
+        grouped = grouped[grouped >= max(1, min_size)].sort_values(ascending=False)
+        total_intersections = len(grouped)
 
+        if top_n is not None and top_n > 0:
+            grouped = grouped.head(top_n)
+
+        if grouped.empty:
+            self.logger.warning(
+                "No intersections passed the filters (min_size=%d, top_n=%s); "
+                "no plot generated.",
+                min_size,
+                top_n,
+            )
+            return
+
+        # Restrict the matrix rows to species involved in a displayed
+        # intersection (no empty, all-grey rows).
+        shown_species = active_species(species, grouped.index)
         num_intersections = len(grouped)
-        num_species = len(species)
+        num_species = len(shown_species)
+        if num_intersections < total_intersections:
+            self.logger.info(
+                "Plotting %d of %d intersections (min_size=%d, top_n=%s).",
+                num_intersections,
+                total_intersections,
+                min_size,
+                top_n,
+            )
 
         width = max(10.0, num_intersections * 0.7)
         height = max(6.0, (num_species * 0.5) + 4.0)
@@ -78,7 +127,7 @@ class UpSetPlotter:
         )
 
         # Membership matrix (dots).
-        species_reversed = list(reversed(species))
+        species_reversed = list(reversed(shown_species))
         y_positions = np.arange(num_species)
         matrix_axis.grid(axis="y", linestyle="-", color="whitesmoke", zorder=0)
 
@@ -107,6 +156,8 @@ class UpSetPlotter:
         matrix_axis.set_yticks(y_positions)
         matrix_axis.set_yticklabels(species_reversed, fontsize=12)
         matrix_axis.set_xticks([])
+        # Padding so the dots on the first/last rows are not clipped.
+        matrix_axis.set_ylim(-0.6, num_species - 0.4)
         for spine in ("top", "right", "bottom", "left"):
             matrix_axis.spines[spine].set_visible(False)
 
