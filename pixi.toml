@@ -1,0 +1,21 @@
+[workspace]
+name = "mirscope"
+version = "0.1.0"
+description = "Ferramenta para análise comparativa e conservação evolutiva de microRNAs (miRNAs)"
+authors = ["Tatyana Chagas Moura / BiovirLab"]
+channels = ["conda-forge", "bioconda"]
+platforms = ["osx-arm64", "osx-64", "linux-64"]
+
+[dependencies]
+python = "3.10.*"
+mafft = "*"
+pandas = "*"
+matplotlib = "*"
+biopython = "*"
+numpy = "*"
+openpyxl = "*"
+xlsxwriter = "*"
+
+[tasks]
+macro = "python mirscope.py macro"
+estrito = "python mirscope.py estrito"
