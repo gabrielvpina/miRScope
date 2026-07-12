@@ -17,8 +17,18 @@ def run_explore(argv: Optional[List[str]] = None) -> int:
         )
         return 1
 
+    if argv is None:
+        argv = sys.argv[1:]  # forward extra streamlit flags (e.g. --server.port)
+
     main_script = Path(__file__).resolve().parent / "main.py"
-    command = [sys.executable, "-m", "streamlit", "run", str(main_script)]
+    command = [
+        sys.executable,
+        "-m",
+        "streamlit",
+        "run",
+        str(main_script),
+        "--theme.base=light",  # light appearance by default
+    ]
     if argv:
         command += list(argv)
     return subprocess.call(command)

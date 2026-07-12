@@ -6,11 +6,9 @@ from typing import List, Optional, Sequence
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-_DARK = "#2e3440"
-_BAR = "#3b4252"
-_ABSENT = "#dfe3ea"
-
-# Palette-neutral single-hue matrix; kept monochrome to read as one system.
+# Monochrome palettes so the plot reads as one system in each theme.
+_LIGHT = {"template": "simple_white", "bar": "#3b4252", "present": "#2e3440", "absent": "#dfe3ea"}
+_DARK = {"template": "plotly_dark", "bar": "#cbd5e1", "present": "#e5e9f0", "absent": "#3b4252"}
 
 
 def build_upset_figure(
@@ -18,15 +16,18 @@ def build_upset_figure(
     all_species: Sequence[str],
     title: str = "miRNA intersections",
     max_clusters_in_hover: int = 25,
+    dark: bool = False,
 ) -> Optional[go.Figure]:
     """Return a Plotly UpSet figure, or ``None`` when there is nothing to show.
 
     ``records`` come from :func:`mirscope.plotting.intersections_with_members`.
-    Hovering a bar reveals the species combination, the intersection size and
-    the member cluster ids.
+    Hovering a bar reveals the member ``miRNA_ID``s of that intersection.
+    ``dark`` selects a dark theme for the figure.
     """
     if not records:
         return None
+
+    palette = _DARK if dark else _LIGHT
 
     active = [
         species
@@ -68,7 +69,7 @@ def build_upset_figure(
         go.Bar(
             x=x_values,
             y=sizes,
-            marker_color=_BAR,
+            marker_color=palette["bar"],
             customdata=hover_text,
             hovertemplate="%{customdata}<extra></extra>",
             text=sizes,
@@ -91,7 +92,7 @@ def build_upset_figure(
             x=background_x,
             y=background_y,
             mode="markers",
-            marker=dict(size=13, color=_ABSENT),
+            marker=dict(size=13, color=palette["absent"]),
             hoverinfo="skip",
             showlegend=False,
         ),
@@ -109,7 +110,7 @@ def build_upset_figure(
                     x=[x_index, x_index],
                     y=[min(ys), max(ys)],
                     mode="lines",
-                    line=dict(color=_DARK, width=3),
+                    line=dict(color=palette["present"], width=3),
                     hoverinfo="skip",
                     showlegend=False,
                 ),
@@ -122,7 +123,7 @@ def build_upset_figure(
                 x=[x_index] * len(ys),
                 y=ys,
                 mode="markers",
-                marker=dict(size=13, color=_DARK),
+                marker=dict(size=13, color=palette["present"]),
                 hovertemplate=f"{combo}<extra></extra>",
                 showlegend=False,
             ),
@@ -134,7 +135,7 @@ def build_upset_figure(
     # the shared points in the membership matrix.
     height = max(480, 300 + num_species * 44)
     figure.update_layout(
-        template="simple_white",
+        template=palette["template"],
         height=height,
         title=dict(text=title, x=0.02, xanchor="left", font=dict(size=18)),
         margin=dict(l=10, r=24, t=64, b=10),

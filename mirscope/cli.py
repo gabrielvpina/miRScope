@@ -16,6 +16,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="mirscope",
         description="MIRSCOPE - microRNA conservation and orthology pipeline",
+        epilog="Tip: after a run, explore the UpSet plot interactively (filters "
+        "in real time) with the 'mirscope-explore' command.",
     )
     parser.add_argument(
         "mode",
@@ -60,7 +62,7 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="N",
         help="Show only the N largest intersections in the UpSet plot "
         "(default: 10; use 0 for all). Affects the plot only; exported tables "
-        "keep everything.",
+        "keep everything. Also adjustable live in 'mirscope-explore'.",
     )
     parser.add_argument(
         "--min-size",
@@ -68,7 +70,8 @@ def build_parser() -> argparse.ArgumentParser:
         default=1,
         metavar="N",
         help="Show only intersections with at least N members in the UpSet plot "
-        "(default: 1). Affects the plot only.",
+        "(default: 1). Affects the plot only. Also adjustable live in "
+        "'mirscope-explore'.",
     )
     parser.add_argument(
         "--min-degree",
@@ -77,7 +80,8 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="N",
         help="Show only intersections spanning at least N species in the UpSet "
         "plot (default: 1). Use 2 to hide species-specific groups and show only "
-        "intersections shared between species. Affects the plot only.",
+        "intersections shared between species. Affects the plot only. Also "
+        "adjustable live in 'mirscope-explore'.",
     )
     parser.add_argument(
         "-v",
