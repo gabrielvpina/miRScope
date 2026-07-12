@@ -3,7 +3,7 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
 from mirscope.matrix import BooleanMatrixBuilder
-from mirscope.plotting import UpSetPlotter, active_species
+from mirscope.plotting import UpSetPlotter, active_species, compute_intersections
 
 
 def test_active_species_drops_unused():
@@ -65,6 +65,26 @@ def test_plot_min_size_filters_out_everything(tmp_path):
     # All intersections have size 1, so min_size=5 removes them all → no plot.
     UpSetPlotter().plot(_two_species_matrix(), str(output), "Test", min_size=5)
     assert not output.exists()
+
+
+def test_compute_intersections_filters_and_sorts():
+    grouped, shown, total = compute_intersections(_two_species_matrix(), min_degree=2)
+    assert grouped is not None
+    assert total == 1  # only the shared (degree 2) intersection survives
+    assert set(shown) == {"Homo sapiens", "Mus musculus"}
+
+
+def test_compute_intersections_returns_none_when_filtered_out():
+    grouped, shown, total = compute_intersections(_two_species_matrix(), min_size=99)
+    assert grouped is None
+    assert shown == []
+
+
+def test_build_figure_returns_figure_or_none():
+    fig = UpSetPlotter().build_figure(_two_species_matrix(), "T")
+    assert fig is not None
+    empty = UpSetPlotter().build_figure(_two_species_matrix(), "T", min_size=99)
+    assert empty is None
 
 
 def test_plot_min_degree_keeps_shared_intersection(tmp_path):

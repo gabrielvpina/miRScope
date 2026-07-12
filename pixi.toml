@@ -16,6 +16,8 @@ numpy = "*"
 openpyxl = "*"
 xlsxwriter = "*"
 pytest = "*"
+streamlit = "*"
+plotly = "*"
 
 [pypi-dependencies]
 # Installs the package editable so the `mirscope` command is registered

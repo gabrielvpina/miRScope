@@ -16,6 +16,8 @@ dependencies = [
     "numpy",
     "openpyxl",
     "xlsxwriter",
+    "streamlit",
+    "plotly",
 ]
 
 # Registers the terminal commands.
@@ -24,6 +26,7 @@ dependencies = [
 [project.scripts]
 mirscope = "mirscope.cli:main"
 mirscope-setup = "mirscope.bootstrap:run_setup"
+mirscope-explore = "mirscope.app.launcher:run_explore"
 
 [tool.setuptools.packages.find]
 include = ["mirscope*"]

@@ -30,6 +30,86 @@ def active_species(species, intersections):
     ]
 
 
+def compute_intersections(
+    boolean_df: pd.DataFrame,
+    min_size: int = 1,
+    min_degree: int = 1,
+    top_n: Optional[int] = None,
+):
+    """Aggregate a boolean matrix into filtered, sorted intersections.
+
+    Returns ``(grouped, shown_species, total)`` where ``grouped`` is a Series
+    indexed by boolean membership tuples (value = intersection size), sorted
+    descending; ``shown_species`` are the species appearing in ``grouped``; and
+    ``total`` is the number of intersections before the ``top_n`` cut. If nothing
+    remains, ``grouped`` is ``None``.
+    """
+    if boolean_df.empty:
+        return None, [], 0
+    species = boolean_df.columns.tolist()
+    if len(species) < 2:
+        return None, [], 0
+
+    grouped = boolean_df.groupby(species).size()
+    grouped = grouped[grouped >= max(1, min_size)]
+    if min_degree > 1:
+        grouped = grouped[grouped.index.map(lambda index: sum(index) >= min_degree)]
+    grouped = grouped.sort_values(ascending=False)
+    total = len(grouped)
+
+    if top_n is not None and top_n > 0:
+        grouped = grouped.head(top_n)
+    if grouped.empty:
+        return None, [], total
+
+    return grouped, active_species(species, grouped.index), total
+
+
+def intersections_with_members(
+    boolean_df: pd.DataFrame,
+    min_size: int = 1,
+    min_degree: int = 1,
+    top_n: Optional[int] = None,
+):
+    """Aggregate intersections keeping the member cluster ids of each one.
+
+    Returns ``(records, total)`` where each record is a dict with keys
+    ``species`` (list), ``size`` (int) and ``clusters`` (list of row ids), sorted
+    by size descending and filtered by ``min_size``/``min_degree``/``top_n``.
+    ``total`` is the count before the ``top_n`` cut.
+    """
+    if boolean_df.empty:
+        return [], 0
+    species = list(boolean_df.columns)
+    if len(species) < 2:
+        return [], 0
+
+    groups: dict = {}
+    for cluster_id, row in zip(boolean_df.index, boolean_df.to_numpy()):
+        key = tuple(bool(value) for value in row)
+        groups.setdefault(key, []).append(cluster_id)
+
+    records = []
+    degree_floor = max(1, min_degree)
+    for pattern, ids in groups.items():
+        degree = sum(pattern)
+        if len(ids) < max(1, min_size) or degree < degree_floor:
+            continue
+        records.append(
+            {
+                "species": [species[i] for i, flag in enumerate(pattern) if flag],
+                "size": len(ids),
+                "clusters": list(ids),
+            }
+        )
+
+    records.sort(key=lambda record: record["size"], reverse=True)
+    total = len(records)
+    if top_n is not None and top_n > 0:
+        records = records[:top_n]
+    return records, total
+
+
 class UpSetPlotter:
     """Draw a fully native UpSet plot from a boolean species matrix."""
 
@@ -45,7 +125,25 @@ class UpSetPlotter:
         min_size: int = 1,
         min_degree: int = 1,
     ) -> None:
-        """Render the UpSet plot to ``output_path``.
+        """Render the UpSet plot to ``output_path`` (see :meth:`build_figure`)."""
+        figure = self.build_figure(
+            boolean_df, title=title, top_n=top_n, min_size=min_size, min_degree=min_degree
+        )
+        if figure is None:
+            return
+        figure.savefig(output_path, bbox_inches="tight", dpi=300, facecolor="white")
+        plt.close(figure)
+        self.logger.info("UpSet plot written to '%s'.", output_path)
+
+    def build_figure(
+        self,
+        boolean_df: pd.DataFrame,
+        title: str = "Evolutionary Conservation of miRNAs",
+        top_n: Optional[int] = None,
+        min_size: int = 1,
+        min_degree: int = 1,
+    ):
+        """Build and return the UpSet ``Figure`` (or ``None`` if nothing to plot).
 
         Filters (plot only — exported tables always keep every row):
 
@@ -55,51 +153,29 @@ class UpSetPlotter:
           intersections *shared between* species.
         * ``top_n`` — keep the N largest intersections (applied last).
         """
-        if boolean_df.empty:
-            self.logger.warning("Boolean matrix is empty; no plot generated.")
-            return
-
         species = boolean_df.columns.tolist()
-        if len(species) < 2:
+        grouped, shown_species, total_intersections = compute_intersections(
+            boolean_df, min_size=min_size, min_degree=min_degree, top_n=top_n
+        )
+        if grouped is None:
             self.logger.warning(
-                "Only species '%s' formed clusters; UpSet plot needs at least 2.",
-                species[0],
-            )
-            return
-
-        grouped = boolean_df.groupby(species).size()
-        grouped = grouped[grouped >= max(1, min_size)]
-        if min_degree > 1:
-            grouped = grouped[
-                grouped.index.map(lambda index: sum(index) >= min_degree)
-            ]
-        grouped = grouped.sort_values(ascending=False)
-        total_intersections = len(grouped)
-
-        if top_n is not None and top_n > 0:
-            grouped = grouped.head(top_n)
-
-        if grouped.empty:
-            self.logger.warning(
-                "No intersections passed the filters (min_size=%d, min_degree=%d, "
-                "top_n=%s); no plot generated.",
+                "Nothing to plot (empty, <2 species, or filters removed everything: "
+                "min_size=%d, min_degree=%d, top_n=%s).",
                 min_size,
                 min_degree,
                 top_n,
             )
-            return
+            return None
 
-        # Restrict the matrix rows to species involved in a displayed
-        # intersection (no empty, all-grey rows).
-        shown_species = active_species(species, grouped.index)
         num_intersections = len(grouped)
         num_species = len(shown_species)
         if num_intersections < total_intersections:
             self.logger.info(
-                "Plotting %d of %d intersections (min_size=%d, top_n=%s).",
+                "Plotting %d of %d intersections (min_size=%d, min_degree=%d, top_n=%s).",
                 num_intersections,
                 total_intersections,
                 min_size,
+                min_degree,
                 top_n,
             )
 
@@ -172,9 +248,5 @@ class UpSetPlotter:
         for spine in ("top", "right", "bottom", "left"):
             matrix_axis.spines[spine].set_visible(False)
 
-        plt.margins(x=0.02)
-        plt.savefig(output_path, bbox_inches="tight", dpi=300, facecolor="white")
-        plt.close(figure)
-        self.logger.info(
-            "UpSet plot written to '%s' (%d intersections).", output_path, num_intersections
-        )
+        bar_axis.margins(x=0.02)
+        return figure
