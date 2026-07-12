@@ -15,7 +15,9 @@ biopython = "*"
 numpy = "*"
 openpyxl = "*"
 xlsxwriter = "*"
+pytest = "*"
 
 [tasks]
-macro = "python mirscope.py macro"
-estrito = "python mirscope.py estrito"
+macro = "python -m mirscope macro"
+strict = "python -m mirscope strict"
+test = "pytest mirscope/test -v"
