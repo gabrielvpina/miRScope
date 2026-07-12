@@ -1,6 +1,18 @@
-# MIRSCOPE
+<p align="center">
+  <img src="mirscope/assets/ascii-art.png" alt="MIRSCOPE" width="440">
+</p>
 
-Comparative analysis and evolutionary conservation of microRNAs (miRNAs).
+<p align="center">
+  <b>Comparative analysis and evolutionary conservation of microRNAs (miRNAs).</b>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/version-0.3.0-blue" alt="version">
+  <img src="https://img.shields.io/badge/python-3.8%2B-blue" alt="python">
+  <img src="https://img.shields.io/badge/aligner-MAFFT-3fb950" alt="MAFFT">
+  <img src="https://img.shields.io/badge/UI-Streamlit%20%2B%20Plotly-ff4b4b" alt="UI">
+  <img src="https://img.shields.io/badge/reference-miRBase-orange" alt="miRBase">
+</p>
 
 ## Introduction
 
