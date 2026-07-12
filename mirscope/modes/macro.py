@@ -33,6 +33,7 @@ class MacroMode:
         output_dir: str = ".",
         top_n: Optional[int] = None,
         min_size: int = 1,
+        min_degree: int = 1,
     ) -> None:
         self.logger.info("=" * 60)
         self.logger.info("MIRSCOPE — MODE 1 (Broad Conservation by Seed)")
@@ -71,6 +72,7 @@ class MacroMode:
             "Evolutionary Conservation by Seed Family (Macro Mode)",
             top_n=top_n,
             min_size=min_size,
+            min_degree=min_degree,
         )
 
         self.logger.info("Macro analysis finished in %.2fs.", time.perf_counter() - start)

@@ -67,6 +67,25 @@ def test_plot_min_size_filters_out_everything(tmp_path):
     assert not output.exists()
 
 
+def test_plot_min_degree_keeps_shared_intersection(tmp_path):
+    # _two_species_matrix has one shared (degree 2) and one single-species (degree 1).
+    output = tmp_path / "deg.png"
+    UpSetPlotter().plot(_two_species_matrix(), str(output), "Test", min_degree=2)
+    assert output.exists()
+
+
+def test_plot_min_degree_removes_species_specific_only(tmp_path):
+    # A matrix with only single-species clusters -> min_degree=2 leaves nothing.
+    clusters = {
+        "S1": [[SeqRecord(Seq("AUGC"), id="a|Homo_sapiens", description="")]],
+        "S2": [[SeqRecord(Seq("AUGC"), id="b|Mus_musculus", description="")]],
+    }
+    matrix = BooleanMatrixBuilder().from_clusters(clusters)
+    output = tmp_path / "nodeg.png"
+    UpSetPlotter().plot(matrix, str(output), "Test", min_degree=2)
+    assert not output.exists()
+
+
 def test_plot_skips_when_single_species(tmp_path):
     clusters = {
         "SEED1": [[SeqRecord(Seq("AUGC"), id="hsa-1|Homo_sapiens", description="")]]

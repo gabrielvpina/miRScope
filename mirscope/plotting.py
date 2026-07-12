@@ -43,12 +43,17 @@ class UpSetPlotter:
         title: str = "Evolutionary Conservation of miRNAs",
         top_n: Optional[int] = None,
         min_size: int = 1,
+        min_degree: int = 1,
     ) -> None:
         """Render the UpSet plot to ``output_path``.
 
-        ``min_size`` keeps only intersections with at least that many members;
-        ``top_n`` keeps only the N largest intersections (after ``min_size``).
-        Both affect the plot only — the exported tables always keep every row.
+        Filters (plot only — exported tables always keep every row):
+
+        * ``min_size`` — keep intersections with at least that many members.
+        * ``min_degree`` — keep intersections spanning at least that many
+          species. Use ``2`` to drop species-specific groups and show only the
+          intersections *shared between* species.
+        * ``top_n`` — keep the N largest intersections (applied last).
         """
         if boolean_df.empty:
             self.logger.warning("Boolean matrix is empty; no plot generated.")
@@ -63,7 +68,12 @@ class UpSetPlotter:
             return
 
         grouped = boolean_df.groupby(species).size()
-        grouped = grouped[grouped >= max(1, min_size)].sort_values(ascending=False)
+        grouped = grouped[grouped >= max(1, min_size)]
+        if min_degree > 1:
+            grouped = grouped[
+                grouped.index.map(lambda index: sum(index) >= min_degree)
+            ]
+        grouped = grouped.sort_values(ascending=False)
         total_intersections = len(grouped)
 
         if top_n is not None and top_n > 0:
@@ -71,9 +81,10 @@ class UpSetPlotter:
 
         if grouped.empty:
             self.logger.warning(
-                "No intersections passed the filters (min_size=%d, top_n=%s); "
-                "no plot generated.",
+                "No intersections passed the filters (min_size=%d, min_degree=%d, "
+                "top_n=%s); no plot generated.",
                 min_size,
+                min_degree,
                 top_n,
             )
             return

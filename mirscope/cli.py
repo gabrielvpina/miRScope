@@ -71,6 +71,15 @@ def build_parser() -> argparse.ArgumentParser:
         "(default: 1). Affects the plot only.",
     )
     parser.add_argument(
+        "--min-degree",
+        type=int,
+        default=1,
+        metavar="N",
+        help="Show only intersections spanning at least N species in the UpSet "
+        "plot (default: 1). Use 2 to hide species-specific groups and show only "
+        "intersections shared between species. Affects the plot only.",
+    )
+    parser.add_argument(
         "-v",
         "--verbose",
         action="store_true",
@@ -102,10 +111,12 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     data_folder = args.data if args.data else str(packaged_data_dir())
 
     if args.mode == "macro":
-        MacroMode().run(data_folder, args.input, args.out, args.top_n, args.min_size)
+        MacroMode().run(
+            data_folder, args.input, args.out, args.top_n, args.min_size, args.min_degree
+        )
     else:
         StrictMode(args.cutoff).run(
-            data_folder, args.input, args.out, args.top_n, args.min_size
+            data_folder, args.input, args.out, args.top_n, args.min_size, args.min_degree
         )
 
 
