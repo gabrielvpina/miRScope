@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import time
+from typing import Optional, Sequence
 
 from ..config import MacroOutputs
 from ..exporter import ExcelExporter, build_macro_dataframe
@@ -24,14 +25,16 @@ class MacroMode:
         self.exporter = ExcelExporter()
         self.plotter = UpSetPlotter()
 
-    def run(self, data_path: str) -> None:
+    def run(
+        self, data_folder: str, input_files: Optional[Sequence[str]] = None
+    ) -> None:
         self.logger.info("=" * 60)
         self.logger.info("MIRSCOPE — MODE 1 (Broad Conservation by Seed)")
         self.logger.info("=" * 60)
         start = time.perf_counter()
 
         self.logger.info("Loading data...")
-        mirnas, species = self.loader.load(data_path)
+        mirnas, species = self.loader.load(data_folder, input_files)
         if not mirnas:
             self.logger.error("No data loaded; aborting macro mode.")
             return

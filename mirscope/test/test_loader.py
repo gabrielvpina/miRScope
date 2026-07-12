@@ -46,3 +46,50 @@ def test_load_returns_empty_when_no_files(tmp_path):
     mirnas, species = FastaLoader().load(str(tmp_path))
     assert mirnas == []
     assert species == []
+
+
+def test_load_combines_reference_folder_and_input_file(tmp_path):
+    reference = tmp_path / "ref"
+    reference.mkdir()
+    (reference / "mirna_Homo_sapiens.fasta").write_text(">hsa-1\nUGAGAUUCUUGA\n")
+
+    user_input = tmp_path / "mirna_My_species.fasta"
+    user_input.write_text(">my-1\nUUCCACAGCUUU\n")
+
+    mirnas, species = FastaLoader().load(str(reference), [str(user_input)])
+
+    assert species == ["Homo sapiens", "My species"]
+    assert len(mirnas) == 2
+
+
+def test_load_input_only_without_folder(tmp_path):
+    user_input = tmp_path / "mirna_My_species.fasta"
+    user_input.write_text(">my-1\nUUCCACAGCUUU\n")
+
+    mirnas, species = FastaLoader().load(None, [str(user_input)])
+
+    assert species == ["My species"]
+    assert len(mirnas) == 1
+
+
+def test_load_skips_missing_input_file(tmp_path):
+    reference = tmp_path / "ref"
+    reference.mkdir()
+    (reference / "mirna_Homo_sapiens.fasta").write_text(">hsa-1\nUGAGAUUCUUGA\n")
+
+    mirnas, species = FastaLoader().load(str(reference), [str(tmp_path / "missing.fasta")])
+
+    assert species == ["Homo sapiens"]
+    assert len(mirnas) == 1
+
+
+def test_load_deduplicates_input_already_in_folder(tmp_path):
+    reference = tmp_path / "ref"
+    reference.mkdir()
+    shared = reference / "mirna_Homo_sapiens.fasta"
+    shared.write_text(">hsa-1\nUGAGAUUCUUGA\n")
+
+    mirnas, _ = FastaLoader().load(str(reference), [str(shared)])
+
+    # The same file passed both ways must be counted only once.
+    assert len(mirnas) == 1

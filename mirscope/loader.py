@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import glob
 import os
-from typing import List, Tuple
+from typing import List, Optional, Sequence, Tuple
 
 from Bio import SeqIO
 
@@ -49,14 +49,52 @@ class FastaLoader:
             files.extend(glob.glob(os.path.join(folder, extension)))
         return sorted(set(files))
 
-    def load(self, folder: str) -> Tuple[List[MiRNA], List[str]]:
-        """Return ``(mirnas, species)`` parsed from every FASTA file in ``folder``."""
-        files = self._list_files(folder)
+    def _collect_files(
+        self, folder: Optional[str], input_files: Optional[Sequence[str]]
+    ) -> List[str]:
+        """Gather FASTA paths from the reference folder plus explicit inputs."""
+        collected: List[str] = []
+
+        if folder:
+            folder_files = self._list_files(folder)
+            if folder_files:
+                self.logger.info(
+                    "Reference folder '%s': %d FASTA file(s).", folder, len(folder_files)
+                )
+            else:
+                self.logger.warning(
+                    "No FASTA files found in reference folder '%s'.", folder
+                )
+            collected.extend(folder_files)
+
+        for path in input_files or []:
+            if os.path.isfile(path):
+                self.logger.info("Input file added to analysis: '%s'.", path)
+                collected.append(path)
+            else:
+                self.logger.error("Input file not found (skipped): '%s'.", path)
+
+        # De-duplicate by absolute path so an input already in the folder is counted once.
+        return sorted({os.path.abspath(path) for path in collected})
+
+    def load(
+        self,
+        folder: Optional[str] = None,
+        input_files: Optional[Sequence[str]] = None,
+    ) -> Tuple[List[MiRNA], List[str]]:
+        """Return ``(mirnas, species)`` parsed from the reference folder and inputs.
+
+        ``folder`` is the reference database (e.g. ``data/``); ``input_files`` are
+        extra user FASTA files added to the same analysis.
+        """
+        files = self._collect_files(folder, input_files)
         if not files:
-            self.logger.error("No FASTA files found in folder '%s'.", folder)
+            self.logger.error(
+                "No FASTA files to load (folder=%r, input=%r).", folder, input_files
+            )
             return [], []
 
-        self.logger.info("Found %d FASTA file(s) in '%s'.", len(files), folder)
+        self.logger.info("Loading %d FASTA file(s)...", len(files))
 
         database: List[MiRNA] = []
         species_found = set()

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import time
-from typing import Dict, List
+from typing import Dict, List, Optional, Sequence
 
 from ..alignment import MafftAligner
 from ..clustering import CohesionClusterer
@@ -36,7 +36,9 @@ class StrictMode:
         self.alignment_writer = AlignmentWriter()
         self.plotter = UpSetPlotter()
 
-    def run(self, data_path: str) -> None:
+    def run(
+        self, data_folder: str, input_files: Optional[Sequence[str]] = None
+    ) -> None:
         self.logger.info("=" * 60)
         self.logger.info("MIRSCOPE — MODE 2 (Strict Orthology by Cohesion)")
         self.logger.info("Identity cutoff: %.1f%%", self.cutoff)
@@ -49,7 +51,7 @@ class StrictMode:
             return
 
         self.logger.info("Loading data...")
-        mirnas, species = self.loader.load(data_path)
+        mirnas, species = self.loader.load(data_folder, input_files)
         if not mirnas:
             self.logger.error("No data loaded; aborting strict mode.")
             return
