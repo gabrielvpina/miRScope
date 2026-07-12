@@ -1,95 +1,177 @@
-# 🧬 MIRSCOPE
+# MIRSCOPE
 
-MIRSCOPE é uma ferramenta automatizada desenvolvida em Python para análise comparativa e conservação evolutiva de microRNAs.
+Comparative analysis and evolutionary conservation of microRNAs (miRNAs).
 
-A ferramenta utiliza uma abordagem centrada na região seed (nucleotídeos 2-8) e oferece duas vias analíticas para os pesquisadores: um Modo Macro (para conservação ampla da família) e um Modo Estrito (com motor de alinhamento para ortólogos reais, resgatando exclusividades biológicas).
+## Introduction
 
-## 🛠️ Pré-requisitos e Compatibilidade
+MIRSCOPE compares miRNAs across species centered on the **seed region**
+(nucleotides 2–8), the functionally most important part for target recognition.
+It groups miRNAs by their seed and reports which species share them, revealing
+how conserved (evolutionarily widespread) each miRNA family is.
 
-O MIRSCOPE foi desenhado para rodar em sistemas Linux e macOS (ou Windows via WSL).
-Para utilizar a ferramenta, o seu sistema precisa ter:
+It offers two analysis modes:
 
-Python 3.8+
+- **macro** — broad conservation. Groups miRNAs purely by exact seed identity,
+  without alignment. Fast; ideal for a quick view of large family spread.
+- **strict** — orthology by cohesion. Aligns each seed family with **MAFFT** and
+  applies a base-to-base identity cutoff (default **85%**) to isolate true
+  mature orthologs, while still rescuing species-specific miRNAs.
 
-MAFFT (Software de alinhamento múltiplo)
+The full miRBase reference database ships inside the package
+(`mirscope/data/`, ~259 species), so analyses work out of the box. Results
+include publication-ready UpSet plots, detailed Excel tables, and an interactive
+Streamlit explorer (`mirscope-explore`).
 
-### Como instalar o MAFFT
+## Installation
 
-O motor de coesão do MIRSCOPE exige que o MAFFT esteja instalado e acessível no seu terminal (PATH).
+Requires **Python 3.8+**. MAFFT is a native binary (needed only for the strict
+mode) that `pip` cannot install; the options below handle it.
 
-#### - Ubuntu/Debian (Linux):
+### Manual (for now)
 
-sudo apt update
-sudo apt install mafft
+```bash
+git clone https://github.com/gabrielvpina/miRScope.git
+cd miRScope
+pip install .
+```
 
+`pip install` pulls all Python dependencies (pandas, matplotlib, biopython,
+streamlit, plotly, …) and registers the commands `mirscope`, `mirscope-setup`
+and `mirscope-explore`.
 
-#### - macOS (via Homebrew):
+Then provide **MAFFT** in one of these ways:
 
-brew install mafft
+- **Recommended:** run the bundled setup, which installs [pixi](https://pixi.sh)
+  and MAFFT into an environment inside the package. `mirscope` finds it
+  automatically afterwards:
+  ```bash
+  mirscope-setup
+  ```
+  To remove that managed environment later: `mirscope-setup --clean`.
 
+- **System package** (if you prefer): `brew install mafft` (macOS) or
+  `sudo apt install mafft` (Debian/Ubuntu).
 
-#### - Via Conda (Qualquer SO):
+Alternatively, if you already use pixi, a single command sets up everything
+(Python deps + MAFFT):
 
-conda install -c bioconda mafft
+```bash
+pixi install
+pixi run mirscope strict --out results
+```
 
+### Docker
 
-## 📥 Instalação do MIRSCOPE
+A `Dockerfile` is included. MAFFT is installed from the OS repositories, so the
+image is fully self-contained (no `mirscope-setup` needed).
 
-Faça o clone deste repositório e instale as dependências do Python:
+```bash
+docker build -t mirscope .
+```
 
-## 1. Clonar o repositório
-git clone [https://github.com/TatyanaChagas/mirscope.git](https://github.com/TatyanaChagas/mirscope.git)
-cd mirscope
+Run the pipeline (mount a folder to keep the outputs):
 
-## 2. Instalar as bibliotecas Python necessárias
-pip install -r requirements.txt
+```bash
+docker run --rm -v "$PWD/results:/app/results" mirscope strict --out results
+```
 
-## 3. Utilização da ferramenta
+Run the interactive explorer (override the entrypoint and expose the port):
 
-🚀 Como Usar
+```bash
+docker run --rm -p 8501:8501 --entrypoint mirscope-explore \
+  mirscope --server.address=0.0.0.0
+```
 
-O MIRSCOPE exige que os seus arquivos de entrada estejam em uma pasta chamada fasta_especies/.
-Atualmente, esta pasta no repositório já contém os arquivos de todos os miRNAs disponíveis no miRBase (maio/2026).
+Then open http://localhost:8501.
 
-  ⚠️ Preparando os seus dados para análise:
+## Usage
 
-  - Adicionar: Você pode adicionar os seus próprios arquivos de interesse nesta pasta. Cada arquivo FASTA deve representar uma única espécie e conter todas as sequências de miRNAs pertencentes a ela.
-  
-  - Regra de Ouro (Nomenclatura): O nome dos arquivos .fasta deve obrigatoriamente seguir o formato de taxonomia para que o MIRSCOPE reconheça a espécie. Ex: mirna_Homo_sapiens.fasta ou mirna_Mus_musculus.fa.
-  
-  - Filtrar (Altamente Recomendado): Se você não tem interesse em realizar a sua análise contra todo o banco do miRBase, exclua os arquivos das espécies que não vai usar. Manter na pasta apenas as espécies do seu estudo deixará o processamento muito mais rápido e gerará um UpSet Plot muito mais focado e limpo.
+```
+mirscope {macro,strict} [cutoff] [--data DIR] [--input FASTA ...] [--out DIR]
+                        [--top-n N] [--min-size N] [--min-degree N] [-v]
+```
 
-A ferramenta possui dois executáveis independentes:
+| Argument | Description | Default |
+|---|---|---|
+| `mode` | `macro` (broad conservation) or `strict` (orthology by cohesion) | — |
+| `cutoff` | Identity cutoff percent (strict mode only) | `85` |
+| `--data DIR` | Reference FASTA folder. Resolves to the **bundled** miRBase database if omitted | bundled `mirscope/data/` |
+| `--input FASTA ...` | One or more input FASTA files added to the analysis, compared against the reference | — |
+| `--out DIR` | Output directory (created if missing) | current directory |
+| `--top-n N` | Show only the N largest intersections in the UpSet plot (`0` = all) | `10` |
+| `--min-size N` | Show only intersections with at least N miRNAs | `1` |
+| `--min-degree N` | Show only intersections spanning at least N species (`2` = shared-only) | `1` |
+| `-v`, `--verbose` | Enable DEBUG-level logging | off |
 
-### MODO 1: Conservação Ampla (Macro)
+The filter flags (`--top-n`, `--min-size`, `--min-degree`) affect the **UpSet
+plot only** — the exported tables always keep every row. They can also be
+adjusted live in `mirscope-explore`.
 
-Agrupa miRNAs partindo exclusivamente da conservação da região seed, saltando o alinhamento completo. Ideal para respostas rápidas sobre a disseminação de grandes famílias.
+### Input data
 
-python run_modo_macro.py
+- The reference database (`--data`) is one FASTA file per species. The bundled
+  default already contains the full miRBase.
+- Your own `--input` files must be named `mirna_Genus_species.fasta`
+  (e.g. `mirna_Homo_sapiens.fasta`) so the species is recognized; otherwise the
+  file name is used as the species label.
+- The UpSet plot requires at least 2 species; the Excel tables are produced
+  regardless.
 
+### Examples
 
-### MODO 2: Ortologia Estrita por Coesão
+```bash
+# Broad conservation across the whole bundled reference
+mirscope macro --out results
 
-Utiliza o MAFFT para alinhar as famílias de seed e aplica um rigoroso cutoff de 85% de identidade base a base para isolar verdadeiros ortólogos maduros, garantindo simultaneamente o resgate de miRNAs espécie-específicos.
+# Strict orthology, adding your own species, showing only shared intersections
+mirscope strict --input mirna_My_species.fasta --out results --min-degree 2
 
-💡 Personalizando o Limite de Identidade (Cutoff):
-O valor padrão de similaridade da ferramenta é de 85%. Se a sua pesquisa exigir um rigor maior (ex: 95%) ou for mais flexível, você pode alterar esse valor facilmente. Basta abrir o arquivo run_modo_estrito.py em qualquer editor de texto e alterar o valor numérico da variável cutoff_desejado = 85.0 localizada no início do código.
+# Strict with a stricter cutoff (95%) and the top 40 intersections
+mirscope strict 95 --out results --top-n 40
+```
 
-python run_modo_estrito.py
+## Outputs
 
+All files are written to `--out` (default: current directory).
 
-## 📊 Outputs (Resultados)
+### macro
 
-Após a execução, o MIRSCOPE gera relatórios padronizados e prontos para publicação na mesma pasta:
+| File | Content |
+|---|---|
+| `output_mode1_macro_detailed.xlsx` | One row per miRNA: seed, number of species per seed, species, id, sequence |
+| `results_mode1_macro.png` | UpSet plot of seed-family conservation across species |
 
-output_modoX_upset.png: Gráfico responsivo nativo mostrando as interseções evolutivas (UpSet Plot).
+### strict
 
-output_modo2_alinhamentos.fasta: Ficheiro de texto contendo todos os alinhamentos gerados pelo MAFFT.
+| File | Content |
+|---|---|
+| `output_mode2_alignments.fasta` | All MAFFT alignments, grouped by seed |
+| `output_mode2_clusters_detailed.xlsx` | Which cohesion cluster each miRNA belongs to |
+| `output_mode2_matrix_upset.xlsx` | Boolean presence/absence matrix (clusters × species) |
+| `output_mode2_intersection_groups.xlsx` | Readable table of species intersections and their member clusters |
+| `output_mode2_strict_upset.png` | UpSet plot of orthologous clusters across species |
 
-output_modo2_clusters_detalhados.xlsx: Tabela detalhada indicando exatamente a que cluster evolutivo pertence cada miRNA de cada espécie.
+## Interactive app (mirscope-explore)
 
-output_modo2_grupos_intersecoes.xlsx: Tabela de leitura fácil detalhando os grupos biológicos (ex: Homo sapiens + Mus musculus) e a lista de miRNAs ortólogos partilhados.
+`mirscope-explore` opens a Streamlit dashboard to explore the results
+interactively, without re-running the pipeline:
 
-## ✍️ Autoria e Citação
+```bash
+mirscope-explore
+```
 
-Desenvolvido por Tatyana Chagas Moura / BiovirLab
+- Upload the strict-mode matrix (`output_mode2_matrix_upset.xlsx`, or a
+  CSV/Parquet presence/absence matrix) in the sidebar.
+- Adjust the filters in real time — **species**, **min-degree**, **top-n**,
+  **min-size** — and the **Plotly UpSet plot** updates instantly.
+- **Hover a bar** to see the `miRNA_ID`s shared in that intersection.
+- Toggle **light/dark** appearance (light by default).
+- Download the current intersections as CSV.
+
+Because heavy computation (MAFFT alignment) runs once in the pipeline, exploring
+the filters here is instantaneous. See the Docker section above for running the
+explorer in a container.
+
+## Authorship and citation
+
+Developed by Tatyana Chagas Moura / BiovirLab.
