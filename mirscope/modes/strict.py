@@ -1,6 +1,7 @@
 """Mode 2 — strict orthology via MAFFT alignment and cohesion clustering."""
 from __future__ import annotations
 
+import os
 import time
 from typing import Dict, List, Optional, Sequence
 
@@ -35,9 +36,17 @@ class StrictMode:
         self.exporter = ExcelExporter()
         self.alignment_writer = AlignmentWriter()
         self.plotter = UpSetPlotter()
+        self.output_dir = "."
+
+    def _out(self, name: str) -> str:
+        """Resolve an output file name inside the configured output directory."""
+        return os.path.join(self.output_dir, name)
 
     def run(
-        self, data_folder: str, input_files: Optional[Sequence[str]] = None
+        self,
+        data_folder: str,
+        input_files: Optional[Sequence[str]] = None,
+        output_dir: str = ".",
     ) -> None:
         self.logger.info("=" * 60)
         self.logger.info("MIRSCOPE — MODE 2 (Strict Orthology by Cohesion)")
@@ -50,6 +59,10 @@ class StrictMode:
             )
             return
 
+        self.output_dir = output_dir
+        os.makedirs(output_dir, exist_ok=True)
+        self.logger.info("Output directory: '%s'", os.path.abspath(output_dir))
+
         self.logger.info("Loading data...")
         mirnas, species = self.loader.load(data_folder, input_files)
         if not mirnas:
@@ -61,14 +74,14 @@ class StrictMode:
         self.logger.info("Seed families to process: %d", len(prepared))
 
         aligned_results = self._align_all(prepared)
-        self.alignment_writer.save(aligned_results, self.outputs.alignments_fasta)
+        self.alignment_writer.save(aligned_results, self._out(self.outputs.alignments_fasta))
 
         clusters_by_seed = self._cluster_all(aligned_results, prepared)
 
         self.logger.info("Exporting detailed cluster table...")
         cluster_df = build_cluster_dataframe(clusters_by_seed)
         self.exporter.save_grouped(
-            cluster_df, self.outputs.clusters_excel, group_column="Cluster_ID"
+            cluster_df, self._out(self.outputs.clusters_excel), group_column="Cluster_ID"
         )
 
         self._export_matrix_and_plot(clusters_by_seed)
@@ -128,15 +141,17 @@ class StrictMode:
             return
 
         self.exporter.save_formatted(
-            matrix, self.outputs.matrix_excel, keep_index=True
+            matrix, self._out(self.outputs.matrix_excel), keep_index=True
         )
 
         intersections = build_intersection_dataframe(matrix)
-        self.exporter.save_formatted(intersections, self.outputs.intersections_excel)
+        self.exporter.save_formatted(
+            intersections, self._out(self.outputs.intersections_excel)
+        )
 
         self.logger.info("Drawing UpSet plot...")
         self.plotter.plot(
             matrix,
-            self.outputs.upset_plot,
+            self._out(self.outputs.upset_plot),
             f"miRNA Orthology - Total Cohesion (Cutoff: {self.cutoff}%)",
         )

@@ -1,6 +1,7 @@
 """Mode 1 — broad conservation grouped purely by seed identity."""
 from __future__ import annotations
 
+import os
 import time
 from typing import Optional, Sequence
 
@@ -26,12 +27,18 @@ class MacroMode:
         self.plotter = UpSetPlotter()
 
     def run(
-        self, data_folder: str, input_files: Optional[Sequence[str]] = None
+        self,
+        data_folder: str,
+        input_files: Optional[Sequence[str]] = None,
+        output_dir: str = ".",
     ) -> None:
         self.logger.info("=" * 60)
         self.logger.info("MIRSCOPE — MODE 1 (Broad Conservation by Seed)")
         self.logger.info("=" * 60)
         start = time.perf_counter()
+
+        os.makedirs(output_dir, exist_ok=True)
+        self.logger.info("Output directory: '%s'", os.path.abspath(output_dir))
 
         self.logger.info("Loading data...")
         mirnas, species = self.loader.load(data_folder, input_files)
@@ -44,7 +51,9 @@ class MacroMode:
         self.logger.info("Exporting detailed macro table...")
         macro_df = build_macro_dataframe(mirnas)
         self.exporter.save_grouped(
-            macro_df, self.outputs.excel_detailed, group_column="Seed"
+            macro_df,
+            os.path.join(output_dir, self.outputs.excel_detailed),
+            group_column="Seed",
         )
 
         self.logger.info("Building boolean matrix...")
@@ -56,7 +65,7 @@ class MacroMode:
         self.logger.info("Drawing UpSet plot...")
         self.plotter.plot(
             matrix,
-            self.outputs.upset_plot,
+            os.path.join(output_dir, self.outputs.upset_plot),
             "Evolutionary Conservation by Seed Family (Macro Mode)",
         )
 

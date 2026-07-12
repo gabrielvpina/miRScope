@@ -40,7 +40,16 @@ def build_parser() -> argparse.ArgumentParser:
         nargs="+",
         metavar="FASTA",
         help="One or more input FASTA files to add to the analysis, compared "
-        "against the reference database in --data.",
+        "against the reference database in --data. Each file must be named "
+        "'mirna_Genus_species.fasta' (e.g. 'mirna_Homo_sapiens.fasta') so the "
+        "species is recognised; otherwise the file name is used as the species.",
+    )
+    parser.add_argument(
+        "--out",
+        default=".",
+        metavar="DIR",
+        help="Directory where output files are written (created if missing; "
+        "default: current directory).",
     )
     parser.add_argument(
         "-v",
@@ -66,9 +75,9 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         get_logger("bootstrap").debug("Bootstrap check skipped: %s", error)
 
     if args.mode == "macro":
-        MacroMode().run(args.data, args.input)
+        MacroMode().run(args.data, args.input, args.out)
     else:
-        StrictMode(args.cutoff).run(args.data, args.input)
+        StrictMode(args.cutoff).run(args.data, args.input, args.out)
 
 
 if __name__ == "__main__":
