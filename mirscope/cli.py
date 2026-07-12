@@ -5,8 +5,9 @@ import argparse
 import logging
 from typing import Optional, Sequence
 
+from .bootstrap import ensure_pixi
 from .config import DEFAULT_CUTOFF
-from .logging_config import setup_logging
+from .logging_config import get_logger, setup_logging
 from .modes.macro import MacroMode
 from .modes.strict import StrictMode
 
@@ -49,6 +50,13 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
 
     level = logging.DEBUG if args.verbose else logging.INFO
     setup_logging(level)
+
+    # First-run only: make sure pixi (and thus the dependencies) is set up.
+    # Best-effort — must never break the actual pipeline.
+    try:
+        ensure_pixi()
+    except Exception as error:  # noqa: BLE001
+        get_logger("bootstrap").debug("Bootstrap check skipped: %s", error)
 
     if args.mode == "macro":
         MacroMode().run(args.data)

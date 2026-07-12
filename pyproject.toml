@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mirscope"
+version = "0.2.0"
+description = "Comparative analysis and evolutionary conservation of microRNAs."
+readme = "README.md"
+requires-python = ">=3.8"
+authors = [{ name = "Tatyana Chagas Moura / BiovirLab" }]
+dependencies = [
+    "pandas",
+    "matplotlib",
+    "biopython",
+    "numpy",
+    "openpyxl",
+    "xlsxwriter",
+]
+
+# Registers the `mirscope` terminal command -> mirscope.cli:main
+[project.scripts]
+mirscope = "mirscope.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["mirscope*"]
+exclude = ["mirscope.test*"]

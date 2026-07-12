@@ -17,7 +17,12 @@ openpyxl = "*"
 xlsxwriter = "*"
 pytest = "*"
 
+[pypi-dependencies]
+# Installs the package editable so the `mirscope` command is registered
+# in the environment's bin (available via `pixi run mirscope`).
+mirscope = { path = ".", editable = true }
+
 [tasks]
-macro = "python -m mirscope macro"
-strict = "python -m mirscope strict"
+macro = "mirscope macro"
+strict = "mirscope strict"
 test = "pytest mirscope/test -v"

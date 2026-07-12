@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+
+# Pixi
+.pixi/
+
+# MIRSCOPE generated outputs
+output_mode*.xlsx
+output_mode*.fasta
+results_mode*.png
+output_mode2_strict_upset.png
