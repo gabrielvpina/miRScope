@@ -1,6 +1,0 @@
-pandas
-matplotlib
-biopython
-numpy
-openpyxl
-xlsxwriter
