@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="mirscope/assets/ascii-art.png" alt="MIRSCOPE" width="440">
+  <img src="mirscope/assets/ascii-art-round.png" alt="MIRSCOPE" width="440">
 </p>
 
 <p align="center">
