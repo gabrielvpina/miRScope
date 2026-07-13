@@ -65,6 +65,10 @@ class MacroMode:
             self.logger.warning("Not enough data to build the plot.")
             return
 
+        self.exporter.save_formatted(
+            matrix, os.path.join(output_dir, self.outputs.matrix_excel), keep_index=True
+        )
+
         self.logger.info("Drawing UpSet plot...")
         self.plotter.plot(
             matrix,

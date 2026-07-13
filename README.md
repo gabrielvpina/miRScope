@@ -151,6 +151,7 @@ All files are written to `--out` (default: current directory).
 | File | Content |
 |---|---|
 | `output_mode1_macro_detailed.xlsx` | One row per miRNA: seed, number of species per seed, species, id, sequence |
+| `output_mode1_matrix_upset.xlsx` | Boolean presence/absence matrix (seeds × species) — load it in `mirscope-explore` |
 | `results_mode1_macro.png` | UpSet plot of seed-family conservation across species |
 
 ### strict

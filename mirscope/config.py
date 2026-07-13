@@ -48,6 +48,7 @@ class MacroOutputs:
     """Output file names produced by the macro (broad conservation) mode."""
 
     excel_detailed: str = "output_mode1_macro_detailed.xlsx"
+    matrix_excel: str = "output_mode1_matrix_upset.xlsx"
     upset_plot: str = "results_mode1_macro.png"
 
 

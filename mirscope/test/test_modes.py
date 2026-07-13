@@ -17,6 +17,7 @@ def test_macro_creates_output_dir_and_files(tmp_path):
 
     assert out.is_dir()
     assert (out / "output_mode1_macro_detailed.xlsx").exists()
+    assert (out / "output_mode1_matrix_upset.xlsx").exists()
     assert (out / "results_mode1_macro.png").exists()
 
 
