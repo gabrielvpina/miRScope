@@ -24,7 +24,10 @@ mirscope = "mirscope.cli:main"
 include = ["mirscope*"]
 exclude = ["mirscope.test*"]
 
-# Ship the bundled reference FASTA database so it resolves inside a wheel
-# install (no project checkout on disk).
+# Ship the bundled reference FASTA database and the HTML report components
+# (template, CSS, JS, vendored D3, logo) so they resolve inside a wheel install.
 [tool.setuptools.package-data]
-mirscope = ["data/*.fasta", "data/*.fa"]
+mirscope = [
+    "data/*.fasta", "data/*.fa",
+    "components/*", "vendor/*", "assets/*.png",
+]

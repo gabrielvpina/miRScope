@@ -12,6 +12,7 @@ from ..exporter import AlignmentWriter
 from ..grouping import SeedGrouper
 from ..loader import FastaLoader
 from ..logging_config import get_logger
+from ..report import write_report
 from ..results import build_result, strict_families
 from ..storage import ResultStore
 
@@ -103,6 +104,7 @@ class StrictMode:
             os.path.join(output_dir, self.outputs.sqlite),
             os.path.join(output_dir, self.outputs.json),
         )
+        write_report(payload, os.path.join(output_dir, self.outputs.html))
 
         self.logger.info("Strict analysis finished in %.2fs.", time.perf_counter() - start)
         return True

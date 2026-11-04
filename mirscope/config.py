@@ -49,6 +49,7 @@ class MacroOutputs:
 
     sqlite: str = "mirscope_macro.db"
     json: str = "mirscope_macro.json"
+    html: str = "mirscope_macro.html"
 
 
 @dataclass(frozen=True)
@@ -57,4 +58,5 @@ class StrictOutputs:
 
     sqlite: str = "mirscope_strict.db"
     json: str = "mirscope_strict.json"
+    html: str = "mirscope_strict.html"
     alignments_fasta: str = "output_mode2_alignments.fasta"

@@ -33,7 +33,8 @@ The full miRBase reference database ships inside the package
 (`mirscope/data/`, ~259 species), so analyses work out of the box. Results are
 written as a **SQLite database** and a **JSON file** holding every family, its
 member miRNAs and the species intersections (UpSet-ready); strict mode also
-writes the MAFFT alignments as FASTA.
+writes the MAFFT alignments as FASTA. Every run also produces a **self-contained
+interactive HTML report** (open it with a double click, works offline).
 
 ## Installation
 
@@ -128,8 +129,8 @@ All files are written to `--out` (default: current directory).
 
 | Mode | Files |
 |---|---|
-| macro | `mirscope_macro.db`, `mirscope_macro.json` |
-| strict | `mirscope_strict.db`, `mirscope_strict.json`, `output_mode2_alignments.fasta` |
+| macro | `mirscope_macro.db`, `mirscope_macro.json`, `mirscope_macro.html` |
+| strict | `mirscope_strict.db`, `mirscope_strict.json`, `mirscope_strict.html`, `output_mode2_alignments.fasta` |
 
 A **family** is a seed family in macro mode (id = seed) or an orthologous
 cohesion cluster in strict mode (id = `<seed>_Clust_<n>`). An **intersection**
@@ -174,6 +175,29 @@ sqlite3 mirscope_macro.db \
   }
 }
 ```
+
+### HTML report
+
+`mirscope_<mode>.html` is a single file with the JSON, CSS, D3 and all scripts
+inlined. Tabs:
+
+- **Overview** — key numbers, run parameters, conservation spectrum (families
+  per number of species) and the most conserved families.
+- **Intersections** — interactive UpSet plot; `--top-n`, `--min-size` and
+  `--min-degree` are the defaults and can be changed live, plus a "must include
+  species" filter. Click a column to list its families. SVG/PNG/CSV export.
+- **Families** — searchable, sortable table; expanding a row shows each miRNA
+  with the seed (nt 2–8) highlighted and, in strict mode, the aligned sequence.
+- **Species** — families per species (shared vs. species-specific) and a
+  pairwise heatmap of shared families (counts or Jaccard index).
+
+Tabs can be deep-linked with a hash, e.g. `mirscope_macro.html#upset`.
+
+The page is assembled by `mirscope/report.py` from modular components in
+`mirscope/components/`: `shell.html` (skeleton with `{{MS_*}}` placeholders),
+`base.css` (design system — colours are custom properties in `:root`),
+`common.js` (shared helpers and data model) and one `section_*.js` per tab.
+D3 v7.9.0 is vendored in `mirscope/vendor/` (ISC licence).
 
 ## Authorship and citation
 

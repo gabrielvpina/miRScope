@@ -13,5 +13,6 @@ dist/
 # MIRSCOPE generated outputs
 mirscope_*.db
 mirscope_*.json
+mirscope_*.html
 output_mode*.fasta
 results-test/

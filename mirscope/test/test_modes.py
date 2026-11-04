@@ -80,3 +80,13 @@ def test_strict_writes_sqlite_json_and_fasta(tmp_path):
         "SELECT COUNT(*) FROM mirna WHERE aligned_sequence IS NOT NULL"
     ).fetchone()[0] == 3
     con.close()
+
+
+def test_macro_writes_html_report(tmp_path):
+    data = tmp_path / "data"
+    _write_reference(data)
+    out = tmp_path / "results"
+    MacroMode().run(str(data), None, str(out))
+    html = (out / "mirscope_macro.html").read_text()
+    assert html.startswith("<!DOCTYPE html>")
+    assert "const MS_REPORT = {" in html

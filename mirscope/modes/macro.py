@@ -8,6 +8,7 @@ from typing import Optional, Sequence
 from ..config import MacroOutputs
 from ..loader import FastaLoader
 from ..logging_config import get_logger
+from ..report import write_report
 from ..results import build_result, macro_families
 from ..storage import ResultStore
 
@@ -67,6 +68,7 @@ class MacroMode:
             os.path.join(output_dir, self.outputs.sqlite),
             os.path.join(output_dir, self.outputs.json),
         )
+        write_report(payload, os.path.join(output_dir, self.outputs.html))
 
         self.logger.info("Macro analysis finished in %.2fs.", time.perf_counter() - start)
         return True

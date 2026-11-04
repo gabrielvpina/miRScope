@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{MS_TITLE}}</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%233b4a2a'/%3E%3Ctext x='16' y='22' font-family='monospace' font-size='18' font-weight='700' text-anchor='middle' fill='%23e9eedb'%3Em%3C/text%3E%3C/svg%3E">
+
+  <!-- All styles are inlined by report.py -->
+  <style>{{MS_STYLES}}</style>
+</head>
+<body>
+
+  <!-- ── Navigation ─────────────────────────────────────────── -->
+  <nav class="ms-nav" aria-label="Report sections">
+    <div class="ms-nav__brand">
+      <span class="ms-nav__mark">mi</span><span class="ms-nav__word">RScope</span>
+      <span class="ms-nav__mode" id="nav-mode"></span>
+    </div>
+
+    <div class="ms-nav__tabs" role="tablist">
+      <button class="ms-nav__tab active" data-section="overview" role="tab" id="tab-overview"
+              aria-controls="section-overview" aria-selected="true" tabindex="0">Overview</button>
+      <button class="ms-nav__tab" data-section="upset" role="tab" id="tab-upset"
+              aria-controls="section-upset" aria-selected="false" tabindex="-1">Intersections</button>
+      <button class="ms-nav__tab" data-section="families" role="tab" id="tab-families"
+              aria-controls="section-families" aria-selected="false" tabindex="-1">Families</button>
+      <button class="ms-nav__tab" data-section="species" role="tab" id="tab-species"
+              aria-controls="section-species" aria-selected="false" tabindex="-1">Species</button>
+      <button class="ms-nav__tab" data-section="about" role="tab" id="tab-about"
+              aria-controls="section-about" aria-selected="false" tabindex="-1">About</button>
+    </div>
+
+    <div class="ms-nav__meta">
+      <span id="nav-version"></span>
+      <span aria-hidden="true">·</span>
+      <span id="nav-timestamp"></span>
+    </div>
+  </nav>
+
+  <!-- ── Sections ───────────────────────────────────────────── -->
+  <main class="ms-main">
+    <section class="ms-section active" id="section-overview" role="tabpanel" aria-labelledby="tab-overview"></section>
+    <section class="ms-section" id="section-upset"    role="tabpanel" aria-labelledby="tab-upset"    hidden></section>
+    <section class="ms-section" id="section-families" role="tabpanel" aria-labelledby="tab-families" hidden></section>
+    <section class="ms-section" id="section-species"  role="tabpanel" aria-labelledby="tab-species"  hidden></section>
+    <section class="ms-section" id="section-about"    role="tabpanel" aria-labelledby="tab-about"    hidden></section>
+  </main>
+
+  <!-- ── Shared tooltip ─────────────────────────────────────── -->
+  <div class="ms-tooltip" id="ms-tooltip" role="tooltip"></div>
+
+  <!-- ── Report data (injected by report.py) ────────────────── -->
+  <script>const MS_REPORT = {{MS_DATA}};</script>
+  <script>const MS_LOGO = "{{MS_LOGO}}";</script>
+
+  <!-- ── D3 v7 (inlined by report.py) ──────────────────────── -->
+  <script>{{MS_D3}}</script>
+
+  <!-- ── Component scripts (inlined by report.py) ───────────── -->
+  <script>{{MS_COMMON}}</script>
+  <script>{{MS_OVERVIEW}}</script>
+  <script>{{MS_UPSET}}</script>
+  <script>{{MS_FAMILIES}}</script>
+  <script>{{MS_SPECIES}}</script>
+  <script>{{MS_ABOUT}}</script>
+
+  <!-- ── Shell controller ───────────────────────────────────── -->
+  <script>
+  (function () {
+    'use strict';
+
+    const tabs     = [...document.querySelectorAll('.ms-nav__tab')];
+    const sections = [...document.querySelectorAll('.ms-section')];
+    const inited   = new Set();
+
+    // Sections render lazily the first time they become visible, so their
+    // charts can measure their real width.
+    const initializers = {
+      overview: () => msInitOverview(MS.data),
+      upset:    () => msInitUpset(MS.data),
+      families: () => msInitFamilies(MS.data),
+      species:  () => msInitSpecies(MS.data),
+      about:    () => msInitAbout(MS.data),
+    };
+
+    function activate(name) {
+      tabs.forEach(t => {
+        const on = t.dataset.section === name;
+        t.classList.toggle('active', on);
+        t.setAttribute('aria-selected', on ? 'true' : 'false');
+        t.tabIndex = on ? 0 : -1;
+      });
+      sections.forEach(s => {
+        const on = s.id === 'section-' + name;
+        s.classList.toggle('active', on);
+        if (on) s.removeAttribute('hidden'); else s.setAttribute('hidden', '');
+      });
+      if (!inited.has(name)) {
+        inited.add(name);
+        try { initializers[name](); }
+        catch (err) {
+          console.error(err);
+          document.getElementById('section-' + name).innerHTML =
+            '<div class="ms-empty">This section failed to render: ' + MS.esc(err.message) + '</div>';
+        }
+      }
+      if (location.hash !== '#' + name) history.replaceState(null, '', '#' + name);
+      MS.emit('section:shown', name);
+    }
+    MS.activate = activate;
+
+    tabs.forEach((tab, i) => {
+      tab.addEventListener('click', () => activate(tab.dataset.section));
+      tab.addEventListener('keydown', e => {
+        if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+        e.preventDefault();
+        const j = (i + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+        tabs[j].focus();
+        activate(tabs[j].dataset.section);
+      });
+    });
+
+    const run = MS.data.run;
+    document.getElementById('nav-mode').textContent = run.mode;
+    document.getElementById('nav-version').textContent = 'v' + run.version;
+    document.getElementById('nav-timestamp').textContent =
+      run.created_at ? new Date(run.created_at).toLocaleString() : '';
+
+    // Deep link: report.html#upset opens that tab directly.
+    const initial = location.hash.slice(1);
+    activate(initializers[initial] ? initial : 'overview');
+  })();
+  </script>
+
+</body>
+</html>
