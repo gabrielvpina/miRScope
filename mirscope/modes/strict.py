@@ -5,20 +5,25 @@ import os
 import time
 from typing import Dict, List, Optional, Sequence
 
-from ..alignment import MafftAligner
+from ..alignment import MAFFT_ENV_VAR, MafftAligner
 from ..clustering import CohesionClusterer
 from ..config import StrictOutputs
-from ..exporter import (
-    AlignmentWriter,
-    ExcelExporter,
-    build_cluster_dataframe,
-    build_intersection_dataframe,
-)
+from ..exporter import AlignmentWriter
 from ..grouping import SeedGrouper
 from ..loader import FastaLoader
 from ..logging_config import get_logger
-from ..matrix import BooleanMatrixBuilder
-from ..plotting import UpSetPlotter
+from ..results import build_result, strict_families
+from ..storage import ResultStore
+
+MAFFT_INSTALL_HINT = (
+    "Strict mode requires the MAFFT aligner, which was not found. Install it with "
+    "one of:\n"
+    "    brew install mafft                 (macOS)\n"
+    "    sudo apt install mafft             (Debian/Ubuntu)\n"
+    "    conda install -c bioconda mafft    (conda/mamba)\n"
+    f"or point {MAFFT_ENV_VAR} at an existing executable "
+    f"(e.g. export {MAFFT_ENV_VAR}=/path/to/mafft)."
+)
 
 
 class StrictMode:
@@ -32,18 +37,8 @@ class StrictMode:
         self.grouper = SeedGrouper()
         self.aligner = MafftAligner()
         self.clusterer = CohesionClusterer(cutoff)
-        self.matrix_builder = BooleanMatrixBuilder()
-        self.exporter = ExcelExporter()
         self.alignment_writer = AlignmentWriter()
-        self.plotter = UpSetPlotter()
-        self.output_dir = "."
-        self.top_n: Optional[int] = None
-        self.min_size: int = 1
-        self.min_degree: int = 1
-
-    def _out(self, name: str) -> str:
-        """Resolve an output file name inside the configured output directory."""
-        return os.path.join(self.output_dir, name)
+        self.store = ResultStore()
 
     def run(
         self,
@@ -53,22 +48,18 @@ class StrictMode:
         top_n: Optional[int] = None,
         min_size: int = 1,
         min_degree: int = 1,
-    ) -> None:
+    ) -> bool:
+        """Run the analysis and write the outputs. Returns ``True`` on success."""
         self.logger.info("=" * 60)
         self.logger.info("MIRSCOPE — MODE 2 (Strict Orthology by Cohesion)")
         self.logger.info("Identity cutoff: %.1f%%", self.cutoff)
         self.logger.info("=" * 60)
+        start = time.perf_counter()
 
         if not self.aligner.is_available():
-            self.logger.error(
-                "MAFFT executable not found on PATH; strict mode requires MAFFT."
-            )
-            return
+            self.logger.error(MAFFT_INSTALL_HINT)
+            return False
 
-        self.output_dir = output_dir
-        self.top_n = top_n
-        self.min_size = min_size
-        self.min_degree = min_degree
         os.makedirs(output_dir, exist_ok=True)
         self.logger.info("Output directory: '%s'", os.path.abspath(output_dir))
 
@@ -76,24 +67,45 @@ class StrictMode:
         mirnas, species = self.loader.load(data_folder, input_files)
         if not mirnas:
             self.logger.error("No data loaded; aborting strict mode.")
-            return
+            return False
 
         raw_groups = self.grouper.group_records_by_seed(mirnas)
         prepared = self.grouper.prepare_alignment_records(raw_groups)
         self.logger.info("Seed families to process: %d", len(prepared))
 
         aligned_results = self._align_all(prepared)
-        self.alignment_writer.save(aligned_results, self._out(self.outputs.alignments_fasta))
-
-        clusters_by_seed = self._cluster_all(aligned_results, prepared)
-
-        self.logger.info("Exporting detailed cluster table...")
-        cluster_df = build_cluster_dataframe(clusters_by_seed)
-        self.exporter.save_grouped(
-            cluster_df, self._out(self.outputs.clusters_excel), group_column="Cluster_ID"
+        self.alignment_writer.save(
+            aligned_results, os.path.join(output_dir, self.outputs.alignments_fasta)
         )
 
-        self._export_matrix_and_plot(clusters_by_seed)
+        clusters_by_seed = self._cluster_all(aligned_results, prepared)
+        families = strict_families(clusters_by_seed, mirnas)
+        self.logger.info("Built %d orthologous cluster(s).", len(families))
+
+        payload = build_result(
+            "strict",
+            mirnas,
+            species,
+            families,
+            data_dir=data_folder,
+            inputs=input_files,
+            cutoff=self.cutoff,
+            top_n=top_n,
+            min_size=min_size,
+            min_degree=min_degree,
+            failed_seeds=self.aligner.failed_seeds,
+        )
+        self.logger.info(
+            "Found %d species intersection(s).", payload["run"]["counts"]["intersections"]
+        )
+        self.store.save(
+            payload,
+            os.path.join(output_dir, self.outputs.sqlite),
+            os.path.join(output_dir, self.outputs.json),
+        )
+
+        self.logger.info("Strict analysis finished in %.2fs.", time.perf_counter() - start)
+        return True
 
     # -- internal steps -----------------------------------------------------
 
@@ -141,29 +153,3 @@ class StrictMode:
             "Clustering finished in %.2fs.", time.perf_counter() - start
         )
         return clusters_by_seed
-
-    def _export_matrix_and_plot(self, clusters_by_seed: Dict[str, List]) -> None:
-        self.logger.info("Building final boolean matrix...")
-        matrix = self.matrix_builder.from_clusters(clusters_by_seed)
-        if matrix.empty:
-            self.logger.warning("Not enough data to build the matrix and plot.")
-            return
-
-        self.exporter.save_formatted(
-            matrix, self._out(self.outputs.matrix_excel), keep_index=True
-        )
-
-        intersections = build_intersection_dataframe(matrix)
-        self.exporter.save_formatted(
-            intersections, self._out(self.outputs.intersections_excel)
-        )
-
-        self.logger.info("Drawing UpSet plot...")
-        self.plotter.plot(
-            matrix,
-            self._out(self.outputs.upset_plot),
-            f"miRNA Orthology - Total Cohesion (Cutoff: {self.cutoff}%)",
-            top_n=self.top_n,
-            min_size=self.min_size,
-            min_degree=self.min_degree,
-        )

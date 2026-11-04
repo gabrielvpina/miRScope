@@ -6,7 +6,6 @@ import shutil
 import subprocess
 import tempfile
 from io import StringIO
-from pathlib import Path
 from typing import List, Optional
 
 from Bio import SeqIO
@@ -22,9 +21,8 @@ MAFFT_ENV_VAR = "MIRSCOPE_MAFFT"
 def resolve_mafft(executable: str) -> Optional[str]:
     """Resolve the MAFFT executable path.
 
-    Search order: ``MIRSCOPE_MAFFT`` env var, then the global PATH (which the
-    CLI seeds via :func:`mirscope.bootstrap.activate_pixi_env`), then the pixi
-    environment bin directories directly.
+    Search order: the ``MIRSCOPE_MAFFT`` env var (a path or command name), then
+    the global PATH.
     """
     override = os.environ.get(MAFFT_ENV_VAR)
     if override:
@@ -34,18 +32,7 @@ def resolve_mafft(executable: str) -> Optional[str]:
         if located:
             return located
 
-    on_path = shutil.which(executable)
-    if on_path:
-        return on_path
-
-    # Imported lazily to avoid a circular import at module load time.
-    from .bootstrap import pixi_env_bin_dirs
-
-    for bin_dir in pixi_env_bin_dirs():
-        candidate = Path(bin_dir) / executable
-        if candidate.exists():
-            return str(candidate)
-    return None
+    return shutil.which(executable)
 
 
 class MafftAligner:
@@ -62,7 +49,7 @@ class MafftAligner:
         self.failed_seeds: List[str] = []
 
     def resolve_executable(self) -> Optional[str]:
-        """Return the usable MAFFT path (env var, PATH, or pixi env)."""
+        """Return the usable MAFFT path (env var or PATH)."""
         return resolve_mafft(self.config.executable)
 
     def is_available(self) -> bool:
@@ -83,7 +70,7 @@ class MafftAligner:
         executable = self.resolve_executable()
         if executable is None:
             self.logger.error(
-                "MAFFT not found for seed '%s' (checked %s, PATH, and pixi env).",
+                "MAFFT not found for seed '%s' (checked %s and PATH).",
                 seed_sequence,
                 MAFFT_ENV_VAR,
             )

@@ -4,35 +4,27 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mirscope"
-version = "0.3.0"
+version = "0.4.0"
 description = "Comparative analysis and evolutionary conservation of microRNAs."
 readme = "README.md"
 requires-python = ">=3.8"
 authors = [{ name = "Tatyana Chagas Moura / BiovirLab" }]
 dependencies = [
-    "pandas",
-    "matplotlib",
     "biopython",
-    "numpy",
-    "openpyxl",
-    "xlsxwriter",
-    "streamlit",
-    "plotly",
 ]
 
-# Registers the terminal commands.
-#   mirscope        -> run the pipeline
-#   mirscope-setup  -> post-install: ensure pixi + install deps (incl. MAFFT)
+[project.optional-dependencies]
+dev = ["pytest"]
+
+# Registers the terminal command.
 [project.scripts]
 mirscope = "mirscope.cli:main"
-mirscope-setup = "mirscope.bootstrap:run_setup"
-mirscope-explore = "mirscope.app.launcher:run_explore"
 
 [tool.setuptools.packages.find]
 include = ["mirscope*"]
 exclude = ["mirscope.test*"]
 
-# Ship the MAFFT-only manifest and the bundled reference FASTA database so both
-# resolve inside a wheel install (no project checkout on disk).
+# Ship the bundled reference FASTA database so it resolves inside a wheel
+# install (no project checkout on disk).
 [tool.setuptools.package-data]
-mirscope = ["_env/pixi.toml", "data/*.fasta", "data/*.fa"]
+mirscope = ["data/*.fasta", "data/*.fa"]

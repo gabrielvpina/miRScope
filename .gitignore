@@ -4,21 +4,14 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 build/
+.venv/
 dist/
 
 # macOS
 .DS_Store
 
-# Pixi
-.pixi/
-
-# Managed environment provisioned inside the package (keep the shipped manifest)
-mirscope/_env/.pixi/
-mirscope/_env/bootstrap_done
-
 # MIRSCOPE generated outputs
-output_mode*.xlsx
+mirscope_*.db
+mirscope_*.json
 output_mode*.fasta
-results_mode*.png
-output_mode2_strict_upset.png
 results-test/

@@ -6,12 +6,10 @@ import time
 from typing import Optional, Sequence
 
 from ..config import MacroOutputs
-from ..exporter import ExcelExporter, build_macro_dataframe
-from ..grouping import SeedGrouper
 from ..loader import FastaLoader
 from ..logging_config import get_logger
-from ..matrix import BooleanMatrixBuilder
-from ..plotting import UpSetPlotter
+from ..results import build_result, macro_families
+from ..storage import ResultStore
 
 
 class MacroMode:
@@ -21,10 +19,7 @@ class MacroMode:
         self.outputs = outputs or MacroOutputs()
         self.logger = get_logger("mode.macro")
         self.loader = FastaLoader()
-        self.grouper = SeedGrouper()
-        self.matrix_builder = BooleanMatrixBuilder()
-        self.exporter = ExcelExporter()
-        self.plotter = UpSetPlotter()
+        self.store = ResultStore()
 
     def run(
         self,
@@ -34,7 +29,8 @@ class MacroMode:
         top_n: Optional[int] = None,
         min_size: int = 1,
         min_degree: int = 1,
-    ) -> None:
+    ) -> bool:
+        """Run the analysis and write the outputs. Returns ``True`` on success."""
         self.logger.info("=" * 60)
         self.logger.info("MIRSCOPE — MODE 1 (Broad Conservation by Seed)")
         self.logger.info("=" * 60)
@@ -47,36 +43,30 @@ class MacroMode:
         mirnas, species = self.loader.load(data_folder, input_files)
         if not mirnas:
             self.logger.error("No data loaded; aborting macro mode.")
-            return
+            return False
 
-        seed_species = self.grouper.group_species_by_seed(mirnas)
+        families = macro_families(mirnas)
+        self.logger.info("Identified %d seed family(ies).", len(families))
 
-        self.logger.info("Exporting detailed macro table...")
-        macro_df = build_macro_dataframe(mirnas)
-        self.exporter.save_grouped(
-            macro_df,
-            os.path.join(output_dir, self.outputs.excel_detailed),
-            group_column="Seed",
-        )
-
-        self.logger.info("Building boolean matrix...")
-        matrix = self.matrix_builder.from_seed_species(seed_species)
-        if matrix.empty:
-            self.logger.warning("Not enough data to build the plot.")
-            return
-
-        self.exporter.save_formatted(
-            matrix, os.path.join(output_dir, self.outputs.matrix_excel), keep_index=True
-        )
-
-        self.logger.info("Drawing UpSet plot...")
-        self.plotter.plot(
-            matrix,
-            os.path.join(output_dir, self.outputs.upset_plot),
-            "Evolutionary Conservation by Seed Family (Macro Mode)",
+        payload = build_result(
+            "macro",
+            mirnas,
+            species,
+            families,
+            data_dir=data_folder,
+            inputs=input_files,
             top_n=top_n,
             min_size=min_size,
             min_degree=min_degree,
         )
+        self.logger.info(
+            "Found %d species intersection(s).", payload["run"]["counts"]["intersections"]
+        )
+        self.store.save(
+            payload,
+            os.path.join(output_dir, self.outputs.sqlite),
+            os.path.join(output_dir, self.outputs.json),
+        )
 
         self.logger.info("Macro analysis finished in %.2fs.", time.perf_counter() - start)
+        return True

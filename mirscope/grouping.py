@@ -16,16 +16,6 @@ class SeedGrouper:
     def __init__(self) -> None:
         self.logger = get_logger("grouping")
 
-    def group_species_by_seed(self, mirnas: List[MiRNA]) -> Dict[str, List[str]]:
-        """Map each seed to the sorted list of species carrying it."""
-        groups: Dict[str, set] = {}
-        for mirna in mirnas:
-            groups.setdefault(mirna.seed, set()).add(mirna.species)
-
-        result = {seed: sorted(species) for seed, species in groups.items()}
-        self.logger.info("Identified %d seed family(ies).", len(result))
-        return result
-
     def group_records_by_seed(self, mirnas: List[MiRNA]) -> Dict[str, List[dict]]:
         """Map each seed to the raw records (id, species, sequence) it contains."""
         groups: Dict[str, List[dict]] = {}

@@ -9,12 +9,8 @@ RUN apt-get update \
 WORKDIR /app
 COPY . /app
 
-# Installs mirscope + its Python dependencies (including streamlit/plotly) and
-# registers the mirscope / mirscope-setup / mirscope-explore commands.
+# Installs mirscope + its Python dependencies and registers the `mirscope` command.
 RUN pip install --no-cache-dir .
-
-# Streamlit port for `mirscope-explore`.
-EXPOSE 8501
 
 ENTRYPOINT ["mirscope"]
 CMD ["--help"]

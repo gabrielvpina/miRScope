@@ -47,17 +47,14 @@ class MafftConfig:
 class MacroOutputs:
     """Output file names produced by the macro (broad conservation) mode."""
 
-    excel_detailed: str = "output_mode1_macro_detailed.xlsx"
-    matrix_excel: str = "output_mode1_matrix_upset.xlsx"
-    upset_plot: str = "results_mode1_macro.png"
+    sqlite: str = "mirscope_macro.db"
+    json: str = "mirscope_macro.json"
 
 
 @dataclass(frozen=True)
 class StrictOutputs:
     """Output file names produced by the strict (orthology by cohesion) mode."""
 
+    sqlite: str = "mirscope_strict.db"
+    json: str = "mirscope_strict.json"
     alignments_fasta: str = "output_mode2_alignments.fasta"
-    clusters_excel: str = "output_mode2_clusters_detailed.xlsx"
-    matrix_excel: str = "output_mode2_matrix_upset.xlsx"
-    intersections_excel: str = "output_mode2_intersection_groups.xlsx"
-    upset_plot: str = "output_mode2_strict_upset.png"

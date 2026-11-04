@@ -43,23 +43,9 @@ def test_resolve_mafft_prefers_env_var(tmp_path, monkeypatch):
     assert resolve_mafft("mafft") == str(fake)
 
 
-def test_resolve_mafft_falls_back_to_pixi_env(tmp_path, monkeypatch):
-    env_bin = tmp_path / ".pixi" / "envs" / "default" / "bin"
-    env_bin.mkdir(parents=True)
-    mafft_bin = env_bin / "mafft"
-    mafft_bin.write_text("x")
-
-    monkeypatch.delenv("MIRSCOPE_MAFFT", raising=False)
-    monkeypatch.setattr(alignment_module.shutil, "which", lambda name: None)
-    monkeypatch.setattr("mirscope.bootstrap.pixi_env_bin_dirs", lambda: [env_bin])
-
-    assert resolve_mafft("mafft") == str(mafft_bin)
-
-
 def test_resolve_mafft_returns_none_when_absent(monkeypatch):
     monkeypatch.delenv("MIRSCOPE_MAFFT", raising=False)
     monkeypatch.setattr(alignment_module.shutil, "which", lambda name: None)
-    monkeypatch.setattr("mirscope.bootstrap.pixi_env_bin_dirs", lambda: [])
     assert resolve_mafft("mafft") is None
 
 

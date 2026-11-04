@@ -7,17 +7,6 @@ def _mirna(identifier, species, sequence):
     return MiRNA(identifier, species, sequence, "f.fasta")
 
 
-def test_group_species_by_seed_deduplicates_and_sorts():
-    mirnas = [
-        _mirna("a", "Zebra species", "AUGAGAUUC"),
-        _mirna("b", "Alpha species", "AUGAGAUUC"),
-        _mirna("c", "Alpha species", "AUGAGAUUC"),  # duplicate species
-    ]
-    groups = SeedGrouper().group_species_by_seed(mirnas)
-    seed = "UGAGAUU"
-    assert groups[seed] == ["Alpha species", "Zebra species"]
-
-
 def test_group_records_by_seed_keeps_all_members():
     mirnas = [
         _mirna("a", "sp1", "AUGAGAUUC"),
