@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{MS_TITLE}}</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%233b4a2a'/%3E%3Ctext x='16' y='22' font-family='monospace' font-size='18' font-weight='700' text-anchor='middle' fill='%23e9eedb'%3Em%3C/text%3E%3C/svg%3E">
+  <link rel="icon" href="{{MS_ICON}}" type="image/svg+xml">
 
   <!-- All styles are inlined by report.py -->
   <style>{{MS_STYLES}}</style>
@@ -14,6 +14,7 @@
   <!-- ── Navigation ─────────────────────────────────────────── -->
   <nav class="ms-nav" aria-label="Report sections">
     <div class="ms-nav__brand">
+      <img class="ms-nav__icon" src="{{MS_ICON}}" alt="" aria-hidden="true">
       <span class="ms-nav__mark">mi</span><span class="ms-nav__word">RScope</span>
       <span class="ms-nav__mode" id="nav-mode"></span>
     </div>

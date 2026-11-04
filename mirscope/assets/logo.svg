@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 104" role="img" aria-label="miRScope — miRNA seed conservation">
+  <title>miRScope</title>
+  <rect width="400" height="104" rx="24" fill="#3b4a2a"/>
+
+  <!-- icon: magnifier over a miRNA hairpin, seed highlighted -->
+  <g transform="translate(12 12) scale(1.25)">
+    <line x1="39.5" y1="39.5" x2="51" y2="51" stroke="#b9cf86" stroke-width="6.5" stroke-linecap="round"/>
+    <circle cx="27" cy="27" r="16" fill="#2a3520" stroke="#b9cf86" stroke-width="4"/>
+    <g stroke="#7f9654" stroke-width="1.6" stroke-linecap="round">
+      <line x1="22" y1="25.5" x2="32" y2="25.5"/>
+      <line x1="22" y1="29.5" x2="32" y2="29.5"/>
+      <line x1="22" y1="33.5" x2="32" y2="33.5"/>
+    </g>
+    <path d="M22 39 V21 A5 5 0 0 1 32 21 V36.5" fill="none" stroke="#e9eedb" stroke-width="2.4" stroke-linecap="round"/>
+    <path d="M22 37 V24.5" fill="none" stroke="#c2a86b" stroke-width="3.6" stroke-linecap="round"/>
+  </g>
+
+  <!-- wordmark -->
+  <text x="100" y="60" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono',monospace"
+        font-size="44" font-weight="700" letter-spacing="-1">
+    <tspan fill="#b9cf86">mi</tspan><tspan fill="#f2f5e9">RScope</tspan>
+  </text>
+  <text x="102" y="83" font-family="'Inter','Segoe UI',system-ui,-apple-system,Helvetica,Arial,sans-serif"
+        font-size="14" font-weight="600" letter-spacing="1.2" fill="#a9b78a">miRNA seed conservation</text>
+</svg>

@@ -67,7 +67,8 @@ def render_report(payload: dict) -> str:
 
     replacements = {
         "{{MS_TITLE}}": title,
-        "{{MS_LOGO}}": _data_uri(ASSETS_DIR / "ascii-art-round.png"),
+        "{{MS_LOGO}}": _data_uri(ASSETS_DIR / "logo.svg"),
+        "{{MS_ICON}}": _data_uri(ASSETS_DIR / "logo-icon.svg"),
         "{{MS_STYLES}}": _read("base.css"),
         "{{MS_DATA}}": _json_for_script(payload),
         "{{MS_D3}}": D3_PATH.read_text(encoding="utf-8"),

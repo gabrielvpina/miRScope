@@ -83,7 +83,8 @@ em { font-style: italic; }
   color: #e9eedb;
   box-shadow: 0 2px 10px rgba(0, 0, 0, .18);
 }
-.ms-nav__brand { display: flex; align-items: baseline; gap: .1rem; white-space: nowrap; }
+.ms-nav__brand { display: flex; align-items: center; gap: .1rem; white-space: nowrap; }
+.ms-nav__icon { width: 30px; height: 30px; margin-right: .5rem; border-radius: 8px; box-shadow: 0 0 0 1px rgba(255, 255, 255, .12); }
 .ms-nav__mark { font-family: var(--ms-font-mono); font-weight: 700; font-size: 1.25rem; color: #b9cf86; }
 .ms-nav__word { font-family: var(--ms-font-mono); font-weight: 700; font-size: 1.25rem; color: #f2f5e9; }
 .ms-nav__mode {
@@ -319,6 +320,6 @@ em { font-style: italic; }
 
 .ms-about > * + * { margin-top: 1.25rem; }
 .ms-about__hero { text-align: center; padding: 1.5rem 0 .5rem; }
-.ms-about__logo { max-width: min(460px, 100%); border-radius: 18px; box-shadow: var(--ms-shadow); }
+.ms-about__logo { width: min(440px, 100%); height: auto; border-radius: 26px; box-shadow: var(--ms-shadow); }
 .ms-about__tagline { color: var(--ms-text-2); max-width: 60ch; margin: 1rem auto .6rem; }
 .ms-about__foot { text-align: center; color: var(--ms-text-3); font-size: .85rem; padding: 1rem 0; }
