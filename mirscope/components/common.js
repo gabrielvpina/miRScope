@@ -66,50 +66,129 @@ const MS = (function () {
     a.remove();
   }
 
-  function _svgString(svgEl) {
-    const clone = svgEl.cloneNode(true);
-    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-    // Resolve var(--x) references so the file renders outside the page.
-    const root = getComputedStyle(document.documentElement);
-    clone.querySelectorAll('*').forEach(node => {
-      ['fill', 'stroke'].forEach(attr => {
-        const v = node.getAttribute(attr);
-        if (v && v.startsWith('var(')) {
-          node.setAttribute(attr, root.getPropertyValue(v.slice(4, -1).trim()).trim());
-        }
-      });
-    });
-    const style = document.createElementNS('http://www.w3.org/2000/svg', 'style');
-    style.textContent = 'text{font-family:' + cssVar('--ms-font') + ';}';
-    clone.insertBefore(style, clone.firstChild);
-    return new XMLSerializer().serializeToString(clone);
+  // Presentation properties copied from the live page onto the exported SVG.
+  // Chart colours come from CSS classes in base.css, which do not travel with
+  // the file, so each element gets its computed style inlined.
+  const _SVG_PROPS = [
+    'fill', 'fill-opacity', 'stroke', 'stroke-width', 'stroke-opacity',
+    'stroke-dasharray', 'stroke-linecap', 'opacity',
+    'font-family', 'font-size', 'font-weight', 'font-style',
+  ];
+
+  function _isTransparent(v) {
+    return v === 'transparent' || /^rgba\(.*,\s*0\)$/.test(v);
   }
 
-  function exportSVG(svgEl, filename) {
-    if (!svgEl) return;
-    const blob = new Blob([_svgString(svgEl)], { type: 'image/svg+xml;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
+  /**
+   * Standalone SVG markup for `svgEl`: computed styles inlined, hidden nodes
+   * dropped, white background, and an optional caption line at the bottom
+   * (used to record the active filters).
+   */
+  function svgMarkup(svgEl, caption = '') {
+    const clone = svgEl.cloneNode(true);
+    const src = [svgEl, ...svgEl.querySelectorAll('*')];
+    const dst = [clone, ...clone.querySelectorAll('*')];
+    const drop = [];
+    src.forEach((node, i) => {
+      const out = dst[i];
+      out.removeAttribute('class');
+      out.removeAttribute('style');
+      if (node.tagName.toLowerCase() === 'title') return;
+      const cs = getComputedStyle(node);
+      if (cs.display === 'none' || cs.visibility === 'hidden') { drop.push(out); return; }
+      const style = _SVG_PROPS.map(p => {
+        let v = cs.getPropertyValue(p);
+        if (!v) return '';
+        if ((p === 'fill' || p === 'stroke') && _isTransparent(v)) v = 'none';
+        return `${p}:${v}`;
+      }).filter(Boolean).join(';');
+      out.setAttribute('style', style);
+    });
+    drop.forEach(n => n.remove());
+
+    // Crop the empty space to the right of the drawing (charts are as wide as
+    // their card, the content often is not).
+    const box = svgEl.getBoundingClientRect();
+    let w = Math.ceil(box.width);
+    const h = Math.ceil(box.height);
+    try {
+      const bb = svgEl.getBBox();
+      if (bb.width > 0) w = Math.min(w, Math.ceil(bb.x + bb.width + 16));
+    } catch (e) { /* getBBox can throw on detached nodes; keep full width */ }
+    if (caption) w = Math.max(w, Math.ceil(caption.length * 6.2) + 24);   // never clip the caption
+    const capH = caption ? 30 : 0;
+    const ns = 'http://www.w3.org/2000/svg';
+    clone.setAttribute('xmlns', ns);
+    clone.setAttribute('width', w);
+    clone.setAttribute('height', h + capH);
+    clone.setAttribute('viewBox', `0 0 ${w} ${h + capH}`);
+
+    const bg = document.createElementNS(ns, 'rect');
+    bg.setAttribute('width', '100%');
+    bg.setAttribute('height', '100%');
+    bg.setAttribute('fill', '#ffffff');
+    clone.insertBefore(bg, clone.firstChild);
+
+    if (caption) {
+      const t = document.createElementNS(ns, 'text');
+      t.setAttribute('x', 12);
+      t.setAttribute('y', h + 20);
+      t.setAttribute('style', `font-family:${cssVar('--ms-font')};font-size:11px;fill:${cssVar('--ms-text-2')}`);
+      t.textContent = caption;
+      clone.appendChild(t);
+    }
+    return { markup: new XMLSerializer().serializeToString(clone), width: w, height: h + capH };
+  }
+
+  /** Small non-blocking notice (used when an export fails). */
+  function toast(message) {
+    let el = document.getElementById('ms-toast');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'ms-toast';
+      el.className = 'ms-toast';
+      el.setAttribute('role', 'status');
+      document.body.appendChild(el);
+    }
+    el.textContent = message;
+    el.classList.add('visible');
+    clearTimeout(el._t);
+    el._t = setTimeout(() => el.classList.remove('visible'), 4000);
+  }
+
+  function exportSVG(svgEl, filename, caption = '') {
+    if (!svgEl) { toast('Nothing to export yet.'); return; }
+    const { markup } = svgMarkup(svgEl, caption);
+    const url = URL.createObjectURL(new Blob([markup], { type: 'image/svg+xml;charset=utf-8' }));
     _download(url, filename);
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
-  function exportPNG(svgEl, filename, scale = 2) {
-    if (!svgEl) return;
-    const box = svgEl.getBoundingClientRect();
-    const w = Math.round(box.width * scale), h = Math.round(box.height * scale);
-    const url = URL.createObjectURL(new Blob([_svgString(svgEl)], { type: 'image/svg+xml;charset=utf-8' }));
+  function exportPNG(svgEl, filename, caption = '', scale = 2) {
+    if (!svgEl) { toast('Nothing to export yet.'); return; }
+    const { markup, width, height } = svgMarkup(svgEl, caption);
     const img = new Image();
     img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = w; canvas.height = h;
-      const ctx = canvas.getContext('2d');
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, w, h);
-      ctx.drawImage(img, 0, 0, w, h);
-      URL.revokeObjectURL(url);
-      _download(canvas.toDataURL('image/png'), filename);
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(width * scale);
+        canvas.height = Math.round(height * scale);
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(blob => {
+          if (!blob) { toast('PNG export failed (image too large?). Try SVG instead.'); return; }
+          const url = URL.createObjectURL(blob);
+          _download(url, filename);
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }, 'image/png');
+      } catch (err) {
+        console.error(err);
+        toast('PNG export failed: ' + err.message + '. Try SVG instead.');
+      }
     };
-    img.src = url;
+    img.onerror = () => toast('PNG export failed while rendering the chart. Try SVG instead.');
+    // A data URL (not a blob URL) keeps the canvas untainted on file:// pages.
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(markup);
   }
 
   function downloadCSV(rows, columns, filename) {
@@ -147,15 +226,30 @@ const MS = (function () {
       <button class="ms-btn ms-btn--ghost" data-export="png" data-target="${prefix}">PNG</button>`;
   }
 
-  /** Wire SVG/PNG buttons inside `root` to the <svg> inside `#<target>`. */
-  function bindExports(root, basename) {
+  /**
+   * Wire SVG/PNG buttons inside `root` to the <svg> currently inside
+   * `#<target>` (looked up at click time, so it reflects the live filters).
+   * `captions[target]` may return a line describing the active filters; it is
+   * printed under the exported image.
+   */
+  function bindExports(root, basename, captions = {}) {
     root.querySelectorAll('[data-export]').forEach(btn => {
       btn.addEventListener('click', () => {
-        const svg = document.querySelector('#' + btn.dataset.target + ' svg');
-        const name = basename + '_' + btn.dataset.target + '.' + btn.dataset.export;
-        if (btn.dataset.export === 'svg') exportSVG(svg, name); else exportPNG(svg, name);
+        const target = btn.dataset.target;
+        const svg = document.querySelector('#' + target + ' svg');
+        const name = basename + '_' + target + '.' + btn.dataset.export;
+        const caption = captions[target] ? captions[target]() : '';
+        if (btn.dataset.export === 'svg') exportSVG(svg, name, caption);
+        else exportPNG(svg, name, caption);
       });
     });
+  }
+
+  /** "miRScope v0.4.0 · strict · cutoff 85%" prefix for export captions. */
+  function captionPrefix(data) {
+    const run = data.run;
+    return `miRScope v${run.version} · ${run.mode}` +
+      (run.mode === 'strict' ? ` · cutoff ${data.params.cutoff}%` : '');
   }
 
   /**
@@ -226,9 +320,9 @@ const MS = (function () {
   }
 
   return {
-    esc, fmt, pct, cssVar, on, emit, tooltip,
-    exportSVG, exportPNG, downloadCSV,
-    card, exportButtons, bindExports, seqHtml, widthOf,
+    esc, fmt, pct, cssVar, on, emit, tooltip, toast,
+    svgMarkup, exportSVG, exportPNG, downloadCSV,
+    card, exportButtons, bindExports, captionPrefix, seqHtml, widthOf,
     data: buildModel(typeof MS_REPORT !== 'undefined' ? MS_REPORT : {}),
   };
 })();

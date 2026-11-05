@@ -307,6 +307,15 @@ em { font-style: italic; }
 .ms-tooltip.visible { opacity: 1; }
 .ms-tooltip__list { font-style: italic; color: #cdd8b3; }
 
+.ms-toast {
+  position: fixed; left: 50%; bottom: 24px; z-index: 120;
+  transform: translate(-50%, 20px);
+  padding: .6rem 1rem; border-radius: var(--ms-radius-sm);
+  background: var(--ms-danger); color: #fff; font-size: .85rem; box-shadow: var(--ms-shadow);
+  opacity: 0; pointer-events: none; transition: opacity var(--ms-dur), transform var(--ms-dur);
+}
+.ms-toast.visible { opacity: 1; transform: translate(-50%, 0); }
+
 .ms-empty { padding: 2rem; text-align: center; color: var(--ms-text-3); }
 .ms-hint { font-size: .82rem; color: var(--ms-text-3); margin-top: .6rem; }
 .ms-muted { color: var(--ms-text-3); font-weight: 400; text-transform: none; }

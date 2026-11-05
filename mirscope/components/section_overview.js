@@ -91,7 +91,10 @@ function msInitOverview(data) {
 
   drawSpectrum(data, false);
   el.querySelector('#ov-log').addEventListener('change', e => drawSpectrum(data, e.target.checked));
-  MS.bindExports(el, 'mirscope_' + run.mode);
+  MS.bindExports(el, 'mirscope_' + run.mode, {
+    'ov-spectrum': () => `${MS.captionPrefix(data)} · ${data.familyPlural} per number of species` +
+      (el.querySelector('#ov-log').checked ? ' · log scale' : ''),
+  });
   drawTop(data);
 }
 

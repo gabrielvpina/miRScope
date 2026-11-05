@@ -111,7 +111,15 @@ function msInitUpset(data) {
     ], `mirscope_${data.run.mode}_intersections.csv`);
   });
 
-  MS.bindExports(el, 'mirscope_' + data.run.mode);
+  MS.bindExports(el, 'mirscope_' + data.run.mode, {
+    'up-plot': () => {
+      const { total, shown } = filtered(data);
+      return `${MS.captionPrefix(data)} · top-n ${state.topN || 'all'} · min-size ${state.minSize}` +
+        ` · min-degree ${state.minDegree}` +
+        (state.required.length ? ` · must include: ${state.required.join(', ')}` : '') +
+        ` · showing ${shown.length} of ${total} matching intersections`;
+    },
+  });
   render(data);
 }
 
@@ -234,7 +242,7 @@ function drawUpset(data, shown) {
   const matrix = svg.insert('g', ':first-child');
   matrix.selectAll('rect').data(rows).join('rect')
     .attr('class', (r, i) => 'ms-upset-row' + (i % 2 ? '' : ' ms-upset-row--alt'))
-    .attr('x', setW).attr('width', width - setW - 10)
+    .attr('x', setW).attr('width', plotLeft + colW * shown.length + 6 - setW)
     .attr('y', r => rowY(r) - rowH / 2).attr('height', rowH);
 
   const dotR = Math.min(colW, rowH) * 0.3;

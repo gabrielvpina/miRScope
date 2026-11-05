@@ -61,7 +61,13 @@ function msInitSpecies(data) {
     if (v >= 2) { state.heatN = Math.min(v, 80, data.species.length); drawHeat(data); }
   });
   $('#sp-norm').addEventListener('change', e => { state.heatNorm = e.target.checked; drawHeat(data); });
-  MS.bindExports(el, 'mirscope_' + data.run.mode);
+  const sortLabel = { families: 'most families', exclusive: 'most species-specific', name: 'name' };
+  MS.bindExports(el, 'mirscope_' + data.run.mode, {
+    'sp-bars': () => `${MS.captionPrefix(data)} · ${data.familyPlural} per species · sorted by ${sortLabel[state.sort]}` +
+      (state.q ? ` · filter: "${state.q}"` : ''),
+    'sp-heat': () => `${MS.captionPrefix(data)} · top ${state.heatN} species · ` +
+      (state.heatNorm ? 'Jaccard index' : `shared ${data.familyPlural}`),
+  });
 
   drawBars(data);
   if (data.species.length >= 2) drawHeat(data);
