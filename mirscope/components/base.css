@@ -21,6 +21,12 @@
   --ms-seed-fg:        #2f3d1c;
 
   /* --- Heatmap ramp --- */
+  /* nucleotides (sequence logos) */
+  --ms-nt-a:           #4f7f2a;
+  --ms-nt-c:           #2f5d8a;
+  --ms-nt-g:           #c28a1e;
+  --ms-nt-u:           #a8413a;
+
   --ms-heat-low:       #f3f5ec;
   --ms-heat-high:      #3b4a2a;
 
@@ -114,8 +120,12 @@ em { font-style: italic; }
 .ms-grid { display: grid; gap: 1.25rem; }
 .ms-grid--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .ms-grid--2-1 { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+.ms-grid--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 1200px) {
+  .ms-grid--3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 @media (max-width: 900px) {
-  .ms-grid--2, .ms-grid--2-1 { grid-template-columns: 1fr; }
+  .ms-grid--2, .ms-grid--2-1, .ms-grid--3 { grid-template-columns: 1fr; }
   .ms-nav { flex-wrap: wrap; height: auto; padding: .6rem 1rem; gap: .6rem; }
   .ms-nav__meta { display: none; }
   .ms-main { padding: 1rem; }
@@ -291,6 +301,39 @@ em { font-style: italic; }
 .ms-legend__sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-left: .4rem; }
 .ms-legend__sw--shared { background: var(--ms-accent); }
 .ms-legend__sw--excl { background: var(--ms-sand); }
+
+/* Sequence logos */
+.ms-logo-nt { font-family: Arial, Helvetica, sans-serif; font-weight: 700; cursor: default; }
+.ms-nt-A { fill: var(--ms-nt-a); }
+.ms-nt-C { fill: var(--ms-nt-c); }
+.ms-nt-G { fill: var(--ms-nt-g); }
+.ms-nt-U { fill: var(--ms-nt-u); }
+.ms-logo-seed { fill: var(--ms-seed-bg); opacity: .55; }
+.ms-logo-base { stroke: var(--ms-border-dark); }
+.ms-logo-pos { fill: var(--ms-text-3); font-size: 10px; font-variant-numeric: tabular-nums; }
+.ms-logos { display: flex; flex-wrap: wrap; gap: 1.5rem; overflow-x: auto; }
+.ms-logo-box { min-width: 0; }
+.ms-fam-logo { margin-bottom: .75rem; overflow-x: auto; }
+.ms-fam-logo__head { display: flex; align-items: center; gap: .5rem; font-size: .78rem; color: var(--ms-text-2); }
+
+/* Dendrograms and line charts */
+.ms-tree-link { fill: none; stroke: var(--ms-primary-light); stroke-width: 1.2; }
+.ms-tree-leaf { fill: var(--ms-text); font-size: 11px; font-style: italic; }
+.ms-tree-leaf--input { fill: var(--ms-accent-dark); font-weight: 700; }
+.ms-line { fill: none; stroke-width: 2.2; }
+.ms-line--total { stroke: var(--ms-primary); }
+.ms-line--shared { stroke: var(--ms-accent); }
+.ms-line--excl { stroke: var(--ms-sand); }
+.ms-line-dot { stroke: var(--ms-surface); stroke-width: 1.5; }
+.ms-ref-line { stroke: var(--ms-text-3); stroke-dasharray: 4 3; }
+.ms-cursor-line { stroke: var(--ms-danger); stroke-width: 1.5; }
+.ms-ref-label { fill: var(--ms-text-3); font-size: 10px; }
+.ms-legend__sw--total { background: var(--ms-primary); }
+.ms-legend__sw--input { background: var(--ms-accent-dark); }
+.ms-progress { height: 6px; background: var(--ms-heat-low); border-radius: 999px; overflow: hidden; margin: .5rem 0; }
+.ms-progress span { display: block; height: 100%; width: 0; background: var(--ms-accent); transition: width 120ms linear; }
+.ms-range { width: 260px; accent-color: var(--ms-accent); }
+.ms-kpis--sm .ms-kpi__value { font-size: 1.3rem; }
 
 /* ============================================================
    Tooltip, misc

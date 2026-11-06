@@ -2,8 +2,9 @@
    section_families.js — Families tab
    Searchable / sortable / paginated table of seed families
    (macro) or orthologous clusters (strict). Expanding a row shows
-   its miRNAs with the seed (nt 2–8) highlighted, and the aligned
-   sequence in strict mode.
+   its miRNAs with the seed (nt 2–8) highlighted, the aligned
+   sequence in strict mode, and a sequence logo of the members
+   (per-position conservation).
    Listens: families:filter {minDegree,maxDegree}, families:open id
    Exposes: msInitFamilies(data)
    ============================================================ */
@@ -133,6 +134,7 @@ function refresh(data) {
       if (state.open.has(id)) state.open.delete(id); else state.open.add(id);
       refresh(data);
     }));
+    host.querySelectorAll('.ms-fam-logo').forEach(box => drawFamilyLogo(box, data));
   }
   drawPager(pages, data);
 }
@@ -153,6 +155,16 @@ function familyRow(f, data) {
     const inter = data.intersectionOfFamily.get(f.id);
     html += `
       <tr class="ms-fam-detail"><td></td><td colspan="5">
+        ${f.size >= 2 ? `
+          <div class="ms-fam-logo" data-family="${MS.esc(f.id)}">
+            <div class="ms-fam-logo__head">
+              <strong>Sequence logo</strong>
+              <span>${data.isStrict ? `${f.size} aligned sequences` : `${f.size} mature sequences, aligned at the 5' end`}</span>
+              <button class="ms-btn ms-btn--ghost" data-logo-export="svg">SVG</button>
+              <button class="ms-btn ms-btn--ghost" data-logo-export="png">PNG</button>
+            </div>
+            <div class="ms-fam-logo__plot"></div>
+          </div>` : ''}
         <table class="ms-table ms-table--inner">
           <thead><tr><th>miRNA</th><th>Species</th><th>Mature sequence</th>${data.isStrict ? '<th>Aligned</th>' : ''}</tr></thead>
           <tbody>${f.members.map(m => `
@@ -168,6 +180,34 @@ function familyRow(f, data) {
       </td></tr>`;
   }
   return html;
+}
+
+/** Logo of a family's members: aligned sequences (strict) or 5'-anchored (macro). */
+function drawFamilyLogo(box, data) {
+  const f = data.familyById.get(box.dataset.family);
+  if (!f) return;
+  const seqs = f.members.map(m => String((data.isStrict && m.aligned) || m.sequence).toUpperCase());
+  const len = d3.max(seqs, q => q.length);
+  const cols = MS.logoColumns(len);
+  MS.logoAdd(cols, seqs);
+
+  // Seed columns: nt 2–8 of the first member, mapped onto alignment columns.
+  let shade = [1, 7];
+  const first = seqs[0];
+  const at = [];
+  for (let i = 0, pos = 0; i < first.length; i++) if (first[i] !== '-') { if (pos >= 1 && pos <= 7) at.push(i); pos++; }
+  if (at.length) shade = [at[0], at[at.length - 1]];
+
+  const plot = box.querySelector('.ms-fam-logo__plot');
+  const svg = MS.drawLogo(plot, cols, { unit: 'bits', shade, colWidth: 16, height: 90 });
+  svg.addEventListener('click', e => e.stopPropagation());
+  box.querySelectorAll('[data-logo-export]').forEach(btn => btn.addEventListener('click', e => {
+    e.stopPropagation();
+    const name = `mirscope_${data.run.mode}_logo_${f.id}.${btn.dataset.logoExport}`;
+    const caption = `${MS.captionPrefix(data)} · ${f.id} · ${f.size} miRNAs · ${f.degree} species`;
+    if (btn.dataset.logoExport === 'svg') MS.exportSVG(svg, name, caption);
+    else MS.exportPNG(svg, name, caption);
+  }));
 }
 
 function drawPager(pages, data) {

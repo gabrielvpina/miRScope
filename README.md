@@ -186,10 +186,22 @@ inlined. Tabs:
 - **Intersections** — interactive UpSet plot; `--top-n`, `--min-size` and
   `--min-degree` are the defaults and can be changed live, plus a "must include
   species" filter. Click a column to list its families. SVG/PNG/CSV export.
-- **Families** — searchable, sortable table; expanding a row shows each miRNA
-  with the seed (nt 2–8) highlighted and, in strict mode, the aligned sequence.
-- **Species** — families per species (shared vs. species-specific) and a
-  pairwise heatmap of shared families (counts or Jaccard index).
+- **Your input** (only with `--input`) — for each input species: conserved vs.
+  new families (absent from every reference species), conservation profile,
+  closest reference species (shared families or Jaccard) and CSV tables.
+- **Families** — searchable, sortable table; expanding a row shows a sequence
+  logo of its members, each miRNA with the seed (nt 2–8) highlighted and, in
+  strict mode, the aligned sequence.
+- **Species** — families per species (shared vs. species-specific), a pairwise
+  heatmap of shared families (counts or Jaccard index, ordered by UPGMA
+  clustering) and a UPGMA similarity tree of all species (Jaccard distance).
+- **Sequences** — sequence logos of the seed region or the whole mature miRNA
+  for all, shared and species-specific families (each family weighs the same),
+  plus the per-position composition.
+- **Cutoff** (strict only) — re-runs the cohesion clustering in the browser
+  from the stored alignments for every cutoff from 50% to 100%: clusters,
+  shared and species-specific counts per cutoff, and the seed families that
+  change the most. At the run cutoff it reproduces the report exactly.
 
 Tabs can be deep-linked with a hash, e.g. `mirscope_macro.html#upset`.
 

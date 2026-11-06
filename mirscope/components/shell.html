@@ -22,12 +22,18 @@
     <div class="ms-nav__tabs" role="tablist">
       <button class="ms-nav__tab active" data-section="overview" role="tab" id="tab-overview"
               aria-controls="section-overview" aria-selected="true" tabindex="0">Overview</button>
+      <button class="ms-nav__tab" data-section="input" role="tab" id="tab-input"
+              aria-controls="section-input" aria-selected="false" tabindex="-1">Your input</button>
       <button class="ms-nav__tab" data-section="upset" role="tab" id="tab-upset"
               aria-controls="section-upset" aria-selected="false" tabindex="-1">Intersections</button>
       <button class="ms-nav__tab" data-section="families" role="tab" id="tab-families"
               aria-controls="section-families" aria-selected="false" tabindex="-1">Families</button>
       <button class="ms-nav__tab" data-section="species" role="tab" id="tab-species"
               aria-controls="section-species" aria-selected="false" tabindex="-1">Species</button>
+      <button class="ms-nav__tab" data-section="sequences" role="tab" id="tab-sequences"
+              aria-controls="section-sequences" aria-selected="false" tabindex="-1">Sequences</button>
+      <button class="ms-nav__tab" data-section="cutoff" role="tab" id="tab-cutoff"
+              aria-controls="section-cutoff" aria-selected="false" tabindex="-1">Cutoff</button>
       <button class="ms-nav__tab" data-section="about" role="tab" id="tab-about"
               aria-controls="section-about" aria-selected="false" tabindex="-1">About</button>
     </div>
@@ -42,9 +48,12 @@
   <!-- ── Sections ───────────────────────────────────────────── -->
   <main class="ms-main">
     <section class="ms-section active" id="section-overview" role="tabpanel" aria-labelledby="tab-overview"></section>
+    <section class="ms-section" id="section-input" role="tabpanel" aria-labelledby="tab-input" hidden></section>
     <section class="ms-section" id="section-upset"    role="tabpanel" aria-labelledby="tab-upset"    hidden></section>
     <section class="ms-section" id="section-families" role="tabpanel" aria-labelledby="tab-families" hidden></section>
     <section class="ms-section" id="section-species"  role="tabpanel" aria-labelledby="tab-species"  hidden></section>
+    <section class="ms-section" id="section-sequences" role="tabpanel" aria-labelledby="tab-sequences" hidden></section>
+    <section class="ms-section" id="section-cutoff" role="tabpanel" aria-labelledby="tab-cutoff" hidden></section>
     <section class="ms-section" id="section-about"    role="tabpanel" aria-labelledby="tab-about"    hidden></section>
   </main>
 
@@ -64,12 +73,26 @@
   <script>{{MS_UPSET}}</script>
   <script>{{MS_FAMILIES}}</script>
   <script>{{MS_SPECIES}}</script>
+  <script>{{MS_INPUT}}</script>
+  <script>{{MS_SEQUENCES}}</script>
+  <script>{{MS_CUTOFF}}</script>
   <script>{{MS_ABOUT}}</script>
 
   <!-- ── Shell controller ───────────────────────────────────── -->
   <script>
   (function () {
     'use strict';
+
+    // Optional tabs: "Your input" needs --input files, "Cutoff" needs strict mode.
+    const available = {
+      input:  MS.data.inputSpecies.size > 0,
+      cutoff: MS.data.isStrict,
+    };
+    Object.entries(available).forEach(([name, ok]) => {
+      if (ok) return;
+      document.getElementById('tab-' + name).remove();
+      document.getElementById('section-' + name).remove();
+    });
 
     const tabs     = [...document.querySelectorAll('.ms-nav__tab')];
     const sections = [...document.querySelectorAll('.ms-section')];
@@ -82,8 +105,11 @@
       upset:    () => msInitUpset(MS.data),
       families: () => msInitFamilies(MS.data),
       species:  () => msInitSpecies(MS.data),
+      sequences: () => msInitSequences(MS.data),
       about:    () => msInitAbout(MS.data),
     };
+    if (available.input)  initializers.input  = () => msInitInput(MS.data);
+    if (available.cutoff) initializers.cutoff = () => msInitCutoff(MS.data);
 
     function activate(name) {
       tabs.forEach(t => {

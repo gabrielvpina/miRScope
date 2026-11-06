@@ -91,7 +91,31 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _reload(argv: Sequence[str]) -> None:
+    """Hidden developer command: ``mirscope --reload [DIR ...] [-v]``.
+
+    Rebuilds the HTML report of every result JSON/SQLite found in each DIR
+    (default: current directory) with the current report components. Not
+    listed in ``--help`` on purpose.
+    """
+    from .report import reload_reports
+
+    parser = argparse.ArgumentParser(prog="mirscope --reload", add_help=False)
+    parser.add_argument("--reload", nargs="*", default=[])
+    parser.add_argument("-v", "--verbose", action="store_true")
+    args, rest = parser.parse_known_args(argv)
+    setup_logging(logging.DEBUG if args.verbose else logging.INFO)
+    folders = list(args.reload) + [r for r in rest if not r.startswith("-")]
+    if not reload_reports(folders or ["."]):
+        sys.exit(1)
+
+
 def main(argv: Optional[Sequence[str]] = None) -> None:
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if "--reload" in argv:
+        _reload(argv)
+        return
+
     parser = build_parser()
     args = parser.parse_args(argv)
 

@@ -58,3 +58,33 @@ def test_json_round_trip(tmp_path):
     payload = _payload()
     ResultStore().write_json(payload, str(path))
     assert json.loads(path.read_text()) == payload
+
+
+def _strict_payload():
+    from mirscope.results import Family, Member
+
+    families = [
+        Family("UGAGAUU_Clust_1", "UGAGAUU", [
+            Member("hsa-1", "Homo sapiens", "AUGAGAUUC", "h.fasta", "AUGAGAUUC-"),
+            Member("mmu-1", "Mus musculus", "AUGAGAUUCA", "m.fasta", "AUGAGAUUCA"),
+        ]),
+        Family("CCCCCCC_Clust_1", "CCCCCCC", [
+            Member("hsa-2", "Homo sapiens", "ACCCCCCCC", "h.fasta", "ACCCCCCCC"),
+        ]),
+    ]
+    mirnas = [
+        MiRNA("hsa-1", "Homo sapiens", "AUGAGAUUC", "h.fasta"),
+        MiRNA("mmu-1", "Mus musculus", "AUGAGAUUCA", "m.fasta"),
+        MiRNA("hsa-2", "Homo sapiens", "ACCCCCCCC", "h.fasta"),
+    ]
+    return build_result(
+        "strict", mirnas, ["Homo sapiens", "Mus musculus"], families,
+        data_dir="data", inputs=["in/h.fasta"], cutoff=85.0, top_n=1, failed_seeds=["AAAAAAA"],
+    )
+
+
+def test_read_sqlite_rebuilds_the_payload(tmp_path):
+    for payload in (_payload(), _strict_payload()):
+        path = tmp_path / f"{payload['run']['mode']}.db"
+        ResultStore().write_sqlite(payload, str(path))
+        assert ResultStore.read_sqlite(str(path)) == payload

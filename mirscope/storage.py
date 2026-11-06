@@ -86,6 +86,119 @@ class ResultStore:
             json.dump(payload, handle, ensure_ascii=False, separators=(",", ":"))
         self.logger.info("JSON written to '%s'.", path)
 
+    @staticmethod
+    def read_json(path: str) -> dict:
+        with open(path, encoding="utf-8") as handle:
+            return json.load(handle)
+
+    @staticmethod
+    def read_sqlite(path: str) -> dict:
+        """Rebuild the result payload from a database written by :meth:`write_sqlite`."""
+        connection = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        connection.row_factory = sqlite3.Row
+        try:
+            return ResultStore._load(connection)
+        finally:
+            connection.close()
+
+    @staticmethod
+    def _load(connection: sqlite3.Connection) -> dict:
+        run = connection.execute("SELECT * FROM run ORDER BY id LIMIT 1").fetchone()
+        if run is None:
+            raise ValueError("database has no run row")
+        species = [r["name"] for r in connection.execute("SELECT name FROM species ORDER BY rowid")]
+
+        members: dict = {}
+        for r in connection.execute(
+            "SELECT family_id, mirna_id, species, sequence, aligned_sequence, source_file"
+            " FROM mirna ORDER BY rowid"
+        ):
+            member = {
+                "id": r["mirna_id"],
+                "species": r["species"],
+                "sequence": r["sequence"],
+                "source_file": r["source_file"] or "",
+            }
+            if r["aligned_sequence"] is not None:
+                member["aligned"] = r["aligned_sequence"]
+            members.setdefault(r["family_id"], []).append(member)
+        families = []
+        for r in connection.execute("SELECT id, seed FROM family ORDER BY rowid"):
+            fam_members = members.get(r["id"], [])
+            families.append(
+                {
+                    "id": r["id"],
+                    "seed": r["seed"],
+                    "species": sorted({m["species"] for m in fam_members}),
+                    "members": fam_members,
+                }
+            )
+
+        inter_species: dict = {}
+        for r in connection.execute(
+            "SELECT intersection_id, species FROM intersection_species ORDER BY rowid"
+        ):
+            inter_species.setdefault(r["intersection_id"], []).append(r["species"])
+        inter_families: dict = {}
+        for r in connection.execute(
+            "SELECT intersection_id, family_id FROM intersection_family ORDER BY rowid"
+        ):
+            inter_families.setdefault(r["intersection_id"], []).append(r["family_id"])
+        intersections = []
+        upset = []
+        for r in connection.execute("SELECT * FROM intersection ORDER BY rowid"):
+            intersections.append(
+                {
+                    "id": r["id"],
+                    "species": inter_species.get(r["id"], []),
+                    "degree": r["degree"],
+                    "size": r["size"],
+                    "families": inter_families.get(r["id"], []),
+                }
+            )
+            if r["upset_rank"] is not None:
+                upset.append((r["upset_rank"], r["id"]))
+        min_size = run["min_size"] if run["min_size"] is not None else 1
+        min_degree = run["min_degree"] if run["min_degree"] is not None else 1
+        total_matching = sum(
+            1
+            for i in intersections
+            if i["size"] >= max(1, min_size) and i["degree"] >= max(1, min_degree)
+        )
+
+        return {
+            "run": {
+                "tool": run["tool"],
+                "version": run["version"],
+                "mode": run["mode"],
+                "created_at": run["created_at"],
+                "parameters": {
+                    "cutoff": run["cutoff"],
+                    "data_dir": run["data_dir"],
+                    "inputs": json.loads(run["inputs"] or "[]"),
+                    "top_n": run["top_n"],
+                    "min_size": run["min_size"],
+                    "min_degree": run["min_degree"],
+                },
+                "counts": {
+                    "mirnas": run["n_mirnas"],
+                    "species": run["n_species"],
+                    "families": run["n_families"],
+                    "intersections": run["n_intersections"],
+                },
+                "failed_seeds": json.loads(run["failed_seeds"] or "[]"),
+            },
+            "species": species,
+            "families": families,
+            "intersections": {
+                "all": intersections,
+                "upset": {
+                    "ids": [item_id for _, item_id in sorted(upset)],
+                    "total_matching": total_matching,
+                },
+            },
+        }
+
     def write_sqlite(self, payload: dict, path: str) -> None:
         """Write ``payload`` to a fresh SQLite database (an existing file is replaced)."""
         if os.path.exists(path):

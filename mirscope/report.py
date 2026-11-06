@@ -16,7 +16,7 @@ import base64
 import json
 import re
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Iterable, List
 
 from .logging_config import get_logger
 
@@ -33,6 +33,9 @@ SCRIPT_COMPONENTS: Dict[str, str] = {
     "{{MS_UPSET}}": "section_upset.js",
     "{{MS_FAMILIES}}": "section_families.js",
     "{{MS_SPECIES}}": "section_species.js",
+    "{{MS_INPUT}}": "section_input.js",
+    "{{MS_SEQUENCES}}": "section_sequences.js",
+    "{{MS_CUTOFF}}": "section_cutoff.js",
     "{{MS_ABOUT}}": "section_about.js",
 }
 
@@ -90,3 +93,54 @@ def write_report(payload: dict, output_path: str) -> None:
     """Render ``payload`` and write the self-contained HTML to ``output_path``."""
     Path(output_path).write_text(render_report(payload), encoding="utf-8")
     get_logger("report").info("HTML report written to '%s'.", output_path)
+
+
+def _is_payload(payload: object) -> bool:
+    return (
+        isinstance(payload, dict)
+        and isinstance(payload.get("run"), dict)
+        and payload["run"].get("tool") == "mirscope"
+        and "families" in payload
+    )
+
+
+def reload_reports(directories: Iterable[str]) -> List[str]:
+    """Re-render the HTML report of every result found in ``directories``.
+
+    Development helper behind the hidden ``mirscope --reload`` flag: picks up
+    each ``*.json`` result (or, when no JSON with the same name exists, the
+    ``*.db`` database) and rewrites ``<name>.html`` with the current
+    components, without re-running the analysis. Returns the written paths.
+    """
+    from .storage import ResultStore
+
+    logger = get_logger("report")
+    written: List[str] = []
+    for directory in directories:
+        folder = Path(directory)
+        if not folder.is_dir():
+            logger.warning("Not a directory: '%s'.", folder)
+            continue
+        sources: Dict[str, Path] = {}
+        for path in sorted(folder.glob("*.db")):
+            sources[path.stem] = path
+        for path in sorted(folder.glob("*.json")):
+            sources[path.stem] = path   # JSON wins over the database
+        for stem, path in sorted(sources.items()):
+            try:
+                if path.suffix == ".json":
+                    payload = ResultStore.read_json(str(path))
+                else:
+                    payload = ResultStore.read_sqlite(str(path))
+            except Exception as exc:  # not a miRScope result: skip quietly
+                logger.debug("Skipping '%s': %s", path, exc)
+                continue
+            if not _is_payload(payload):
+                logger.debug("Skipping '%s': not a miRScope result.", path)
+                continue
+            target = path.with_suffix(".html")
+            write_report(payload, str(target))
+            written.append(str(target))
+    if not written:
+        logger.warning("No miRScope JSON or SQLite results found to reload.")
+    return written

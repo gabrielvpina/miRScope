@@ -273,6 +273,170 @@ const MS = (function () {
     return w > 50 ? w : fallback;
   }
 
+
+  // ── Sequence logos ───────────────────────────────────────────────────────
+
+  const NUCS = ['A', 'C', 'G', 'U'];
+
+  /** Empty per-position counter for `len` columns. */
+  function logoColumns(len) {
+    return Array.from({ length: len }, () => ({ A: 0, C: 0, G: 0, U: 0, gap: 0, n: 0 }));
+  }
+
+  /**
+   * Add `seqs` to `cols` (from logoColumns). Each sequence set contributes a
+   * total weight of `weight`, split evenly between its sequences, so a family
+   * with 50 paralogs counts as much as a family with one. `offset` skips that
+   * many leading residues of every sequence (0 = start at position 1).
+   */
+  function logoAdd(cols, seqs, weight = 1, offset = 0) {
+    if (!seqs.length) return;
+    const w = weight / seqs.length;
+    seqs.forEach(seq => {
+      for (let i = 0; i < cols.length; i++) {
+        const ch = seq[i + offset];
+        if (ch === undefined) continue;
+        const col = cols[i];
+        col.n += w;
+        if (ch === 'A' || ch === 'C' || ch === 'G' || ch === 'U') col[ch] += w;
+        else if (ch === 'T') col.U += w;
+        else col.gap += w;
+      }
+    });
+  }
+
+  /**
+   * Draw a sequence logo into `host`. `cols` come from logoColumns/logoAdd.
+   * opts: { unit: 'bits'|'prob', labels: [..], shade: [from,to] (column
+   * indexes highlighted as the seed), height, colWidth, title }.
+   * Letter heights are frequency × information content (bits) or plain
+   * frequency (prob). Gap-rich columns shrink with their occupancy.
+   */
+  function drawLogo(host, cols, opts = {}) {
+    host.innerHTML = '';
+    const unit = opts.unit || 'bits';
+    const colW = opts.colWidth || 30;
+    const H = opts.height || 150;
+    const m = { top: opts.title ? 24 : 10, right: 10, bottom: 26, left: 44 };
+    const width = m.left + cols.length * colW + m.right;
+    const height = m.top + H + m.bottom;
+    const yMax = unit === 'bits' ? 2 : 1;
+    const y = d3.scaleLinear().domain([0, yMax]).range([m.top + H, m.top]);
+
+    const svg = d3.select(host).append('svg')
+      .attr('width', width).attr('height', height).attr('viewBox', `0 0 ${width} ${height}`);
+
+    if (opts.title) {
+      svg.append('text').attr('class', 'ms-axis-label').attr('x', m.left).attr('y', 14).text(opts.title);
+    }
+    if (opts.shade) {
+      const [a, b] = opts.shade;
+      svg.append('rect').attr('class', 'ms-logo-seed')
+        .attr('x', m.left + a * colW).attr('y', m.top)
+        .attr('width', (b - a + 1) * colW).attr('height', H);
+    }
+    svg.append('g').attr('class', 'ms-axis')
+      .attr('transform', `translate(${m.left},0)`)
+      .call(d3.axisLeft(y).ticks(unit === 'bits' ? 4 : 5, unit === 'bits' ? '.1f' : '.0%'))
+      .call(g => g.select('.domain').remove());
+    svg.append('text').attr('class', 'ms-axis-label')
+      .attr('transform', `translate(12,${m.top + H / 2}) rotate(-90)`).attr('text-anchor', 'middle')
+      .text(unit === 'bits' ? 'bits' : 'frequency');
+    svg.append('line').attr('class', 'ms-logo-base')
+      .attr('x1', m.left).attr('x2', m.left + cols.length * colW).attr('y1', m.top + H).attr('y2', m.top + H);
+
+    const labels = opts.labels || cols.map((c, i) => i + 1);
+    const CAP = 72;   // cap height of a 100px bold sans-serif glyph
+    cols.forEach((col, i) => {
+      const nt = NUCS.reduce((s, k) => s + col[k], 0);
+      const x0 = m.left + i * colW;
+      svg.append('text').attr('class', 'ms-logo-pos')
+        .attr('x', x0 + colW / 2).attr('y', m.top + H + 16).attr('text-anchor', 'middle').text(labels[i]);
+      if (!nt) return;
+      const occ = col.n ? nt / col.n : 0;
+      const freqs = NUCS.map(k => ({ k, f: col[k] / nt })).filter(d => d.f > 0);
+      const entropy = -freqs.reduce((s, d) => s + d.f * Math.log2(d.f), 0);
+      const scale = unit === 'bits' ? (2 - entropy) * occ : occ;
+      let yb = m.top + H;
+      freqs.sort((a, b) => a.f - b.f).forEach(d => {
+        const h = (y(0) - y(d.f * scale));
+        if (h < 0.5) return;
+        svg.append('text').attr('class', 'ms-logo-nt ms-nt-' + d.k)
+          .attr('transform', `translate(${x0 + 1},${yb}) scale(1,${h / CAP})`)
+          .attr('textLength', colW - 2).attr('lengthAdjust', 'spacingAndGlyphs')
+          .style('font-size', '100px')
+          .text(d.k)
+          .on('mouseenter', e => tooltip.show(
+            `Position <strong>${labels[i]}</strong><br>` +
+            freqs.slice().sort((a, b) => b.f - a.f).map(q => `${q.k}: ${(100 * q.f).toFixed(1)}%`).join(' · ') +
+            `<br>${(2 - entropy).toFixed(2)} bits` + (occ < 0.999 ? ` · ${(100 * (1 - occ)).toFixed(0)}% gaps` : ''), e))
+          .on('mousemove', e => tooltip.move(e))
+          .on('mouseleave', () => tooltip.hide());
+        yb -= h;
+      });
+    });
+    return svg.node();
+  }
+
+  // ── Clustering ───────────────────────────────────────────────────────────
+
+  /**
+   * UPGMA on a symmetric distance matrix. Returns a d3.hierarchy-ready tree:
+   * leaves {name, index}, internal nodes {children:[a,b], height}. `height`
+   * is the merge distance (leaves 0).
+   */
+  function upgma(names, dist) {
+    const n = names.length;
+    let nodes = names.map((name, index) => ({ name, index, height: 0, size: 1 }));
+    const D = dist.map(r => r.slice());
+    let active = d3.range(n);
+    while (active.length > 1) {
+      let best = Infinity, bi = -1, bj = -1;
+      for (let a = 0; a < active.length; a++) {
+        for (let b = a + 1; b < active.length; b++) {
+          const v = D[active[a]][active[b]];
+          if (v < best) { best = v; bi = active[a]; bj = active[b]; }
+        }
+      }
+      const A = nodes[bi], B = nodes[bj];
+      const merged = { children: [A, B], height: best, size: A.size + B.size };
+      // Re-use slot bi for the merged node.
+      active.forEach(k => {
+        if (k === bi || k === bj) return;
+        const v = (D[bi][k] * A.size + D[bj][k] * B.size) / (A.size + B.size);
+        D[bi][k] = D[k][bi] = v;
+      });
+      nodes[bi] = merged;
+      active = active.filter(k => k !== bj);
+    }
+    return nodes[active[0]];
+  }
+
+  /** Pairwise shared-family counts between `names` (diagonal = families per species). */
+  function cooccurrence(families, names) {
+    const idx = new Map(names.map((s, i) => [s, i]));
+    const n = names.length;
+    const M = Array.from({ length: n }, () => new Float64Array(n));
+    families.forEach(f => {
+      const ii = [];
+      f.species.forEach(s => { const i = idx.get(s); if (i !== undefined) ii.push(i); });
+      for (let a = 0; a < ii.length; a++) {
+        M[ii[a]][ii[a]] += 1;
+        for (let b = a + 1; b < ii.length; b++) { M[ii[a]][ii[b]] += 1; M[ii[b]][ii[a]] += 1; }
+      }
+    });
+    return M;
+  }
+
+  /** Jaccard distance matrix (1 − |A∩B| / |A∪B|) from a co-occurrence matrix. */
+  function jaccardDistance(M) {
+    return M.map((row, i) => Array.from(row, (v, j) => {
+      if (i === j) return 0;
+      const union = M[i][i] + M[j][j] - v;
+      return union ? 1 - v / union : 1;
+    }));
+  }
+
   // ── Derived data model ───────────────────────────────────────────────────
 
   function buildModel(report) {
@@ -302,9 +466,19 @@ const MS = (function () {
       f.members.forEach(m => { const s = stats.get(m.species); if (s) s.mirnas += 1; });
     });
 
+    // Species that came from --input files (matched by file name).
+    const inputFiles = new Set(((run.parameters || {}).inputs || []).map(p => String(p).split(/[\\/]/).pop()));
+    const inputSpecies = new Map();   // species -> source file
+    if (inputFiles.size) {
+      families.forEach(f => f.members.forEach(m => {
+        if (inputFiles.has(m.source_file)) inputSpecies.set(m.species, m.source_file);
+      }));
+    }
+
     return {
       run,
       params: run.parameters || {},
+      inputSpecies,
       isStrict: run.mode === 'strict',
       familyLabel: run.mode === 'strict' ? 'cluster' : 'seed family',
       familyPlural: run.mode === 'strict' ? 'clusters' : 'seed families',
@@ -323,6 +497,7 @@ const MS = (function () {
     esc, fmt, pct, cssVar, on, emit, tooltip, toast,
     svgMarkup, exportSVG, exportPNG, downloadCSV,
     card, exportButtons, bindExports, captionPrefix, seqHtml, widthOf,
+    NUCS, logoColumns, logoAdd, drawLogo, upgma, cooccurrence, jaccardDistance,
     data: buildModel(typeof MS_REPORT !== 'undefined' ? MS_REPORT : {}),
   };
 })();

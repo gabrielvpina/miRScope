@@ -1,7 +1,9 @@
 /* ============================================================
    section_species.js — Species tab
    Per-species stacked bars (shared vs. species-specific families)
-   and a pairwise heatmap of families shared between species.
+   a pairwise heatmap of families shared between species (optionally
+   ordered by UPGMA clustering) and a similarity tree of all species
+   built from the Jaccard distance of their family repertoires.
    Exposes: msInitSpecies(data)
    ============================================================ */
 (function () {
@@ -11,7 +13,7 @@ let state;
 
 function msInitSpecies(data) {
   const el = document.getElementById('section-species');
-  state = { sort: 'families', heatN: Math.min(25, data.species.length), heatNorm: false, q: '' };
+  state = { sort: 'families', heatN: Math.min(25, data.species.length), heatNorm: false, q: '', heatOrder: 'tree' };
 
   el.innerHTML = `
     <header class="ms-hero ms-hero--compact">
@@ -47,9 +49,23 @@ function msInitSpecies(data) {
         <label class="ms-field ms-field--inline">Species
           <input type="number" id="sp-heatn" class="ms-input-sm" min="2" max="${Math.min(80, data.species.length)}" value="${state.heatN}">
         </label>
+        <select id="sp-order" class="ms-input-sm">
+          <option value="tree">Order: similarity (UPGMA)</option>
+          <option value="size">Order: most families</option>
+        </select>
         <label class="ms-toggle"><input type="checkbox" id="sp-norm"> Jaccard index</label>
         ${MS.exportButtons('sp-heat')}`,
       body: '<div id="sp-heat" class="ms-chart ms-chart--scroll"></div>',
+    })}
+
+    ${MS.card({
+      title: 'Species similarity tree',
+      subtitle: `UPGMA tree of the Jaccard distance between the ${data.familyPlural} each species carries
+                 (1 − shared / union). Species with similar miRNA repertoires join early (left = similar).
+                 It reflects shared content, not a phylogeny.` +
+                 (data.inputSpecies.size ? ` <span class="ms-legend"><i class="ms-legend__sw ms-legend__sw--input"></i>input species</span>` : ''),
+      actions: MS.exportButtons('sp-tree'),
+      body: '<div id="sp-tree" class="ms-chart ms-chart--scroll ms-chart--tall"></div>',
     })}
   `;
 
@@ -61,17 +77,22 @@ function msInitSpecies(data) {
     if (v >= 2) { state.heatN = Math.min(v, 80, data.species.length); drawHeat(data); }
   });
   $('#sp-norm').addEventListener('change', e => { state.heatNorm = e.target.checked; drawHeat(data); });
+  $('#sp-order').addEventListener('change', e => { state.heatOrder = e.target.value; drawHeat(data); });
   const sortLabel = { families: 'most families', exclusive: 'most species-specific', name: 'name' };
   MS.bindExports(el, 'mirscope_' + data.run.mode, {
     'sp-bars': () => `${MS.captionPrefix(data)} · ${data.familyPlural} per species · sorted by ${sortLabel[state.sort]}` +
       (state.q ? ` · filter: "${state.q}"` : ''),
     'sp-heat': () => `${MS.captionPrefix(data)} · top ${state.heatN} species · ` +
-      (state.heatNorm ? 'Jaccard index' : `shared ${data.familyPlural}`),
+      (state.heatNorm ? 'Jaccard index' : `shared ${data.familyPlural}`) +
+      (state.heatOrder === 'tree' ? ' · UPGMA order' : ''),
+    'sp-tree': () => `${MS.captionPrefix(data)} · UPGMA tree of Jaccard distances (${data.familyPlural})`,
   });
 
   drawBars(data);
-  if (data.species.length >= 2) drawHeat(data);
-  else document.getElementById('sp-heat').innerHTML = '<div class="ms-empty">Needs at least two species.</div>';
+  if (data.species.length >= 2) { drawHeat(data); drawTree(data); }
+  else ['sp-heat', 'sp-tree'].forEach(id => {
+    document.getElementById(id).innerHTML = '<div class="ms-empty">Needs at least two species.</div>';
+  });
 }
 
 function drawBars(data) {
@@ -128,33 +149,30 @@ function drawBars(data) {
 function drawHeat(data) {
   const host = document.getElementById('sp-heat');
   host.innerHTML = '';
-  const picked = [...data.speciesStats]
+  let picked = [...data.speciesStats]
     .sort((a, b) => b.families - a.families || a.name.localeCompare(b.name))
     .slice(0, state.heatN).map(s => s.name);
+  let M = MS.cooccurrence(data.families, picked);
+  let tree = null;
+  if (state.heatOrder === 'tree' && picked.length > 2) {
+    tree = MS.upgma(picked, MS.jaccardDistance(M));
+    const order = leaves(tree).map(l => l.index);
+    picked = order.map(i => picked[i]);
+    M = order.map(i => order.map(j => M[i][j]));
+  }
   const n = picked.length;
-  const idx = new Map(picked.map((s, i) => [s, i]));
 
-  // Co-occurrence counts restricted to the picked species.
-  const M = Array.from({ length: n }, () => new Array(n).fill(0));
-  data.families.forEach(f => {
-    const ii = f.species.map(s => idx.get(s)).filter(i => i !== undefined);
-    for (let a = 0; a < ii.length; a++) {
-      for (let b = a; b < ii.length; b++) {
-        M[ii[a]][ii[b]] += 1;
-        if (a !== b) M[ii[b]][ii[a]] += 1;
-      }
-    }
-  });
   const value = (i, j) => {
     if (!state.heatNorm) return M[i][j];
     const union = M[i][i] + M[j][j] - M[i][j];
     return union ? M[i][j] / union : 0;
   };
 
-  const labelW = Math.min(220, 14 + 6.6 * d3.max(picked, s => s.length));
+  const treeW = tree ? 90 : 0;
+  const labelW = Math.min(220, 14 + 6.6 * d3.max(picked, s => s.length)) + treeW;
   const avail = MS.widthOf(host, 900) - labelW - 30;
   const cell = Math.max(12, Math.min(34, avail / n));
-  const top = labelW;   // rotated column labels
+  const top = labelW - treeW;   // rotated column labels
   const width = labelW + cell * n + 30;
   const height = top + cell * n + 10;
 
@@ -168,6 +186,11 @@ function drawHeat(data) {
 
   const svg = d3.select(host).append('svg')
     .attr('width', width).attr('height', height).attr('viewBox', `0 0 ${width} ${height}`);
+
+  if (tree) {
+    const g = svg.append('g');
+    drawDendrogram(g, tree, { x0: 4, width: treeW - 10, top, rowH: cell, maxH: tree.height });
+  }
 
   const cells = [];
   for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) cells.push({ i, j, v: value(i, j), raw: M[i][j] });
@@ -195,7 +218,7 @@ function drawHeat(data) {
 
   const fs = cell < 16 ? '9px' : '11px';
   svg.append('g').selectAll('text').data(picked).join('text')
-    .attr('class', 'ms-upset-label')
+    .attr('class', s => 'ms-upset-label' + (data.inputSpecies.has(s) ? ' ms-tree-leaf--input' : ''))
     .attr('x', labelW - 6).attr('y', (s, i) => top + i * cell + cell / 2)
     .attr('dy', '0.35em').attr('text-anchor', 'end').style('font-size', fs)
     .text(s => s);
@@ -204,6 +227,80 @@ function drawHeat(data) {
     .attr('transform', (s, i) => `translate(${labelW + i * cell + cell / 2},${top - 6}) rotate(-60)`)
     .attr('dy', '0.35em').style('font-size', fs)
     .text(s => s);
+}
+
+/** Leaves of an UPGMA tree, top to bottom. */
+function leaves(node, out = []) {
+  if (node.children) node.children.forEach(c => leaves(c, out));
+  else out.push(node);
+  return out;
+}
+
+/**
+ * Draw `tree` as a left-to-right elbow dendrogram: leaves at x0 + width,
+ * the root at x0. Leaf k sits at y = top + k*rowH + rowH/2.
+ */
+function drawDendrogram(g, tree, { x0, width, top, rowH, maxH }) {
+  const x = d3.scaleLinear().domain([maxH || 1, 0]).range([x0, x0 + width]);
+  let k = 0;
+  (function layout(node) {
+    if (node.children) {
+      node.children.forEach(layout);
+      node._y = d3.mean(node.children, c => c._y);
+    } else {
+      node._y = top + (k++) * rowH + rowH / 2;
+    }
+    node._x = x(node.height);
+  })(tree);
+  const links = [];
+  (function collect(node) {
+    if (!node.children) return;
+    node.children.forEach(c => { links.push([node, c]); collect(c); });
+  })(tree);
+  g.selectAll('path').data(links).join('path')
+    .attr('class', 'ms-tree-link')
+    .attr('d', ([p, c]) => `M${p._x},${p._y}V${c._y}H${c._x}`);
+  return x;
+}
+
+function drawTree(data) {
+  const host = document.getElementById('sp-tree');
+  host.innerHTML = '';
+  const names = data.speciesStats.filter(s => s.families > 0).map(s => s.name);
+  if (names.length < 2) { host.innerHTML = '<div class="ms-empty">Needs at least two species.</div>'; return; }
+  const M = MS.cooccurrence(data.families, names);
+  const tree = MS.upgma(names, MS.jaccardDistance(M));
+  const order = leaves(tree);
+
+  const rowH = 15;
+  const labelW = Math.min(260, 20 + 6.6 * d3.max(names, s => s.length));
+  const width = Math.max(560, MS.widthOf(host, 900) - 20);
+  const treeW = width - labelW - 20;
+  const m = { top: 30, bottom: 10 };
+  const height = m.top + order.length * rowH + m.bottom;
+
+  const svg = d3.select(host).append('svg')
+    .attr('width', width).attr('height', height).attr('viewBox', `0 0 ${width} ${height}`);
+  const x = drawDendrogram(svg.append('g'), tree, { x0: 10, width: treeW, top: m.top, rowH, maxH: tree.height });
+  svg.append('g').attr('class', 'ms-axis')
+    .attr('transform', `translate(0,${m.top - 6})`)
+    .call(d3.axisTop(x).ticks(6, '.2f').tickSize(-(order.length * rowH + 6)))
+    .call(g => g.select('.domain').remove())
+    .call(g => g.selectAll('line').attr('stroke-opacity', 0.5));
+  svg.append('text').attr('class', 'ms-axis-label').attr('x', 10).attr('y', 10).text('Jaccard distance');
+
+  const stat = new Map(data.speciesStats.map(s => [s.name, s]));
+  svg.append('g').selectAll('text').data(order).join('text')
+    .attr('class', d => 'ms-tree-leaf' + (data.inputSpecies.has(d.name) ? ' ms-tree-leaf--input' : ''))
+    .attr('x', 10 + treeW + 6).attr('y', (d, i) => m.top + i * rowH + rowH / 2).attr('dy', '0.35em')
+    .text(d => d.name)
+    .on('mouseenter', (e, d) => {
+      const s = stat.get(d.name);
+      MS.tooltip.show(`<strong>${MS.esc(d.name)}</strong><br>${MS.fmt(s.families)} ${data.familyPlural}` +
+        ` · ${MS.fmt(s.exclusive)} species-specific` + (data.inputSpecies.has(d.name) ? '<br>input species' : ''), e);
+    })
+    .on('mousemove', e => MS.tooltip.move(e))
+    .on('mouseleave', () => MS.tooltip.hide());
 }
 
 window.msInitSpecies = msInitSpecies;

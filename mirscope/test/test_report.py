@@ -44,3 +44,31 @@ def test_script_close_in_data_is_escaped():
     data = re.search(r"const MS_REPORT = (.*?);</script>", html, re.S).group(1)
     assert "</script>" not in data
     assert "evil</script>" in json.loads(data)["families"][0]["members"][0]["id"]
+
+
+def test_reload_rewrites_html_from_json_and_db(tmp_path):
+    from mirscope.cli import main
+    from mirscope.storage import ResultStore
+
+    payload = _payload()
+    ResultStore().write_json(payload, str(tmp_path / "mirscope_macro.json"))
+    ResultStore().write_sqlite(payload, str(tmp_path / "only_db.db"))
+    (tmp_path / "unrelated.json").write_text('{"hello": 1}')
+
+    main(["--reload", str(tmp_path)])
+
+    assert (tmp_path / "mirscope_macro.html").exists()
+    assert (tmp_path / "only_db.html").exists()
+    assert not (tmp_path / "unrelated.html").exists()
+    html = (tmp_path / "only_db.html").read_text()
+    match = re.search(r"const MS_REPORT = (.*?);</script>", html, re.S)
+    assert json.loads(match.group(1)) == payload
+
+
+def test_reload_is_hidden_from_help(capsys):
+    import pytest
+    from mirscope.cli import main
+
+    with pytest.raises(SystemExit):
+        main(["--help"])
+    assert "reload" not in capsys.readouterr().out
