@@ -2,8 +2,7 @@
    section_species.js — Species tab
    Per-species stacked bars (shared vs. species-specific families)
    a pairwise heatmap of families shared between species (optionally
-   ordered by UPGMA clustering) and a similarity tree of all species
-   built from the Jaccard distance of their family repertoires.
+   ordered by UPGMA clustering of the Jaccard distance).
    Exposes: msInitSpecies(data)
    ============================================================ */
 (function () {
@@ -57,16 +56,6 @@ function msInitSpecies(data) {
         ${MS.exportButtons('sp-heat')}`,
       body: '<div id="sp-heat" class="ms-chart ms-chart--scroll"></div>',
     })}
-
-    ${MS.card({
-      title: 'Species similarity tree',
-      subtitle: `UPGMA tree of the Jaccard distance between the ${data.familyPlural} each species carries
-                 (1 − shared / union). Species with similar miRNA repertoires join early (left = similar).
-                 It reflects shared content, not a phylogeny.` +
-                 (data.inputSpecies.size ? ` <span class="ms-legend"><i class="ms-legend__sw ms-legend__sw--input"></i>input species</span>` : ''),
-      actions: MS.exportButtons('sp-tree'),
-      body: '<div id="sp-tree" class="ms-chart ms-chart--scroll ms-chart--tall"></div>',
-    })}
   `;
 
   const $ = s => el.querySelector(s);
@@ -85,14 +74,11 @@ function msInitSpecies(data) {
     'sp-heat': () => `${MS.captionPrefix(data)} · top ${state.heatN} species · ` +
       (state.heatNorm ? 'Jaccard index' : `shared ${data.familyPlural}`) +
       (state.heatOrder === 'tree' ? ' · UPGMA order' : ''),
-    'sp-tree': () => `${MS.captionPrefix(data)} · UPGMA tree of Jaccard distances (${data.familyPlural})`,
   });
 
   drawBars(data);
-  if (data.species.length >= 2) { drawHeat(data); drawTree(data); }
-  else ['sp-heat', 'sp-tree'].forEach(id => {
-    document.getElementById(id).innerHTML = '<div class="ms-empty">Needs at least two species.</div>';
-  });
+  if (data.species.length >= 2) drawHeat(data);
+  else document.getElementById('sp-heat').innerHTML = '<div class="ms-empty">Needs at least two species.</div>';
 }
 
 function drawBars(data) {
@@ -260,47 +246,6 @@ function drawDendrogram(g, tree, { x0, width, top, rowH, maxH }) {
   g.selectAll('path').data(links).join('path')
     .attr('class', 'ms-tree-link')
     .attr('d', ([p, c]) => `M${p._x},${p._y}V${c._y}H${c._x}`);
-  return x;
-}
-
-function drawTree(data) {
-  const host = document.getElementById('sp-tree');
-  host.innerHTML = '';
-  const names = data.speciesStats.filter(s => s.families > 0).map(s => s.name);
-  if (names.length < 2) { host.innerHTML = '<div class="ms-empty">Needs at least two species.</div>'; return; }
-  const M = MS.cooccurrence(data.families, names);
-  const tree = MS.upgma(names, MS.jaccardDistance(M));
-  const order = leaves(tree);
-
-  const rowH = 15;
-  const labelW = Math.min(260, 20 + 6.6 * d3.max(names, s => s.length));
-  const width = Math.max(560, MS.widthOf(host, 900) - 20);
-  const treeW = width - labelW - 20;
-  const m = { top: 30, bottom: 10 };
-  const height = m.top + order.length * rowH + m.bottom;
-
-  const svg = d3.select(host).append('svg')
-    .attr('width', width).attr('height', height).attr('viewBox', `0 0 ${width} ${height}`);
-  const x = drawDendrogram(svg.append('g'), tree, { x0: 10, width: treeW, top: m.top, rowH, maxH: tree.height });
-  svg.append('g').attr('class', 'ms-axis')
-    .attr('transform', `translate(0,${m.top - 6})`)
-    .call(d3.axisTop(x).ticks(6, '.2f').tickSize(-(order.length * rowH + 6)))
-    .call(g => g.select('.domain').remove())
-    .call(g => g.selectAll('line').attr('stroke-opacity', 0.5));
-  svg.append('text').attr('class', 'ms-axis-label').attr('x', 10).attr('y', 10).text('Jaccard distance');
-
-  const stat = new Map(data.speciesStats.map(s => [s.name, s]));
-  svg.append('g').selectAll('text').data(order).join('text')
-    .attr('class', d => 'ms-tree-leaf' + (data.inputSpecies.has(d.name) ? ' ms-tree-leaf--input' : ''))
-    .attr('x', 10 + treeW + 6).attr('y', (d, i) => m.top + i * rowH + rowH / 2).attr('dy', '0.35em')
-    .text(d => d.name)
-    .on('mouseenter', (e, d) => {
-      const s = stat.get(d.name);
-      MS.tooltip.show(`<strong>${MS.esc(d.name)}</strong><br>${MS.fmt(s.families)} ${data.familyPlural}` +
-        ` · ${MS.fmt(s.exclusive)} species-specific` + (data.inputSpecies.has(d.name) ? '<br>input species' : ''), e);
-    })
-    .on('mousemove', e => MS.tooltip.move(e))
-    .on('mouseleave', () => MS.tooltip.hide());
 }
 
 window.msInitSpecies = msInitSpecies;

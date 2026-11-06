@@ -193,8 +193,8 @@ inlined. Tabs:
   logo of its members, each miRNA with the seed (nt 2–8) highlighted and, in
   strict mode, the aligned sequence.
 - **Species** — families per species (shared vs. species-specific), a pairwise
-  heatmap of shared families (counts or Jaccard index, ordered by UPGMA
-  clustering) and a UPGMA similarity tree of all species (Jaccard distance).
+  heatmap of shared families (counts or Jaccard index), ordered by UPGMA
+  clustering of the Jaccard distance with its dendrogram.
 - **Sequences** — sequence logos of the seed region or the whole mature miRNA
   for all, shared and species-specific families (each family weighs the same),
   plus the per-position composition.

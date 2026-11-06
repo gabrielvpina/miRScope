@@ -52,7 +52,7 @@ function msInitAbout(data) {
             <li><strong>Sequence logo</strong> — letter height is the nucleotide frequency, or
                 frequency × information content (bits, max 2). The seed (nt 2–8) is shaded.</li>
             <li><strong>Jaccard distance</strong> — 1 − shared / union of the families of two species;
-                the species tree joins the closest species first (UPGMA).</li>
+                the heatmap can be ordered by UPGMA clustering of it.</li>
             ${mode === 'strict' ? `<li><strong>Cutoff</strong> — the clustering is recomputed in the browser
                 from the stored alignments, so other identity thresholds can be explored without re-running.</li>` : ''}
           </ul>`,
